@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Round the invoice total to the nearest whole rupee. The 'biggest_tax'
+         strategy absorbs the paise difference into the largest tax line, so the
+         journal entry stays balanced (no rounding GL account needed). The GST
+         figure can shift by at most 0.50 per invoice. -->
+    <record id="cash_rounding_round_off" model="account.cash.rounding">
+        <field name="name">Round Off (Nearest Rupee)</field>
+        <field name="rounding">1</field>
+        <field name="strategy">biggest_tax</field>
+        <field name="rounding_method">HALF-UP</field>
+    </record>
+</odoo>

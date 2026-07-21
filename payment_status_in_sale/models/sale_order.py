@@ -65,10 +65,23 @@ class SaleOrder(models.Model):
         for order in self:
             order.total_payment = sum(order.payment_ids.mapped('amount'))
 
-    @api.depends('amount_total', 'total_payment')
+    @api.depends('amount_total', 'invoice_ids.state', 'invoice_ids.move_type',
+                 'invoice_ids.amount_total', 'invoice_ids.amount_residual',
+                 'invoice_ids.payment_state')
     def _compute_balance_amount(self):
+        """Balance still owed on the order = order total minus what has actually
+        been paid against its posted invoices (credit notes reduce the paid
+        amount). This reflects real invoice payments, not the manual payment
+        lines in the Payments tab, so a fully paid invoice zeroes the balance."""
         for order in self:
-            order.balance_amount = order.amount_total - order.total_payment
+            paid = 0.0
+            for invoice in order.invoice_ids.filtered(
+                    lambda m: m.state == 'posted'):
+                if invoice.move_type == 'out_invoice':
+                    paid += invoice.amount_total - invoice.amount_residual
+                elif invoice.move_type == 'out_refund':
+                    paid -= invoice.amount_total - invoice.amount_residual
+            order.balance_amount = order.amount_total - paid
 
 
     @api.depends('invoice_ids')

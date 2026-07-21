@@ -64,6 +64,9 @@
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="sale.view_order_tree"/>
         <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="attributes">
+                <attribute name="width">150px</attribute>
+            </xpath>
             <xpath expr="//field[@name='invoice_status']" position="after">
                 <field name="payment_status" optional="show"
                        decoration-success="payment_status in ['Paid', 'Reversed']"
@@ -75,10 +78,12 @@
 
             </xpath>
             <xpath expr="field[@name='partner_id']" position="after">
-                <field name="project_status"/>
+                <field name="project_status" optional="show"/>
             </xpath>
             <xpath expr="field[@name='amount_total']" position="after">
                 <field name="balance_amount" sum="Balance Amount" widget="monetary"/>
+                <field name="amount_due" string="Amount Due" sum="Amount Due"
+                       widget="monetary" optional="hide"/>
             </xpath>
         </field>
     </record>
@@ -91,6 +96,9 @@
         <field name="inherit_id"
                ref="sale.view_quotation_tree_with_onboarding"/>
         <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="attributes">
+                <attribute name="width">150px</attribute>
+            </xpath>
             <xpath expr="//field[@name='invoice_status']" position="after">
                 <field name="payment_status" optional="show"
                        decoration-success="payment_status in ['Paid', 'Reversed']"
@@ -101,10 +109,12 @@
                        widget="badge"/>
             </xpath>
              <xpath expr="field[@name='partner_id']" position="after">
-                <field name="project_status"/>
+                <field name="project_status" optional="show"/>
             </xpath>
             <xpath expr="field[@name='amount_total']" position="after">
                 <field name="balance_amount" sum="Balance Amount" widget="monetary"/>
+                <field name="amount_due" string="Amount Due" sum="Amount Due"
+                       widget="monetary" optional="hide"/>
             </xpath>
         </field>
     </record>

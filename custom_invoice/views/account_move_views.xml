@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Pin a minimum/fixed width on the Number column of the invoice list
+         so it doesn't get squeezed and truncate the sequence (e.g. FTPPL/26-...). -->
+    <record id="view_invoice_tree_number_width" model="ir.ui.view">
+        <field name="name">account.invoice.list.number.width.inherit</field>
+        <field name="model">account.move</field>
+        <field name="inherit_id" ref="account.view_invoice_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='name']" position="attributes">
+                <attribute name="width">150px</attribute>
+            </xpath>
+        </field>
+    </record>
+</odoo>

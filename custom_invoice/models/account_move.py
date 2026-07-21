@@ -41,6 +41,28 @@ class AccountMove(models.Model):
         compute="_compute_amount_in_words"
     )
 
+    # Customer-invoice move types that should be rounded to the nearest rupee.
+    _CASH_ROUNDING_MOVE_TYPES = ('out_invoice', 'out_refund', 'out_receipt')
+
+    @api.model
+    def default_get(self, fields_list):
+        """Default the cash rounding to 'Round Off (Nearest Rupee)' for new
+        customer invoices/credit notes. This covers both manual creation and
+        invoices generated from a sale order (which create the move with
+        default_move_type='out_invoice' in context)."""
+        res = super().default_get(fields_list)
+        if 'invoice_cash_rounding_id' in fields_list and not res.get(
+                'invoice_cash_rounding_id'):
+            move_type = self.env.context.get('default_move_type')
+            if (move_type in self._CASH_ROUNDING_MOVE_TYPES
+                    and self.env.company.country_code == 'IN'):
+                rounding = self.env.ref(
+                    'custom_invoice.cash_rounding_round_off',
+                    raise_if_not_found=False)
+                if rounding:
+                    res['invoice_cash_rounding_id'] = rounding.id
+        return res
+
     @api.depends('company_id')
     def _compute_narration(self):
         for move in self:
