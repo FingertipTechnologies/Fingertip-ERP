@@ -28,6 +28,30 @@
 
     </template>
 
+    <!-- Static Payment Milestone block (fixed 40/20/30/10 milestones, with the
+         base amount taken from each order's untaxed amount). Rendered just
+         before the totals block, matching the proforma layout. -->
+    <template id="sale_payment_milestone"
+              inherit_id="sale.report_saleorder_document">
+        <xpath expr="//div[@name='so_total_summary']" position="before">
+            <div name="payment_milestone" style="margin-top:8px; font-style:italic;">
+                <div><strong>Payment Milestone:</strong></div>
+                <div>1).Advance payment 40% on Rs.<span
+                        t-field="doc.amount_untaxed"
+                        t-options='{"widget": "float", "precision": 0}'/>/-</div>
+                <div>2).Upon BRD Sign off 20% on Rs.<span
+                        t-field="doc.amount_untaxed"
+                        t-options='{"widget": "float", "precision": 0}'/>/-</div>
+                <div>3).After UAT Sign off 30% on Rs.<span
+                        t-field="doc.amount_untaxed"
+                        t-options='{"widget": "float", "precision": 0}'/>/-</div>
+                <div>4).After user onboarding 10% on Rs.<span
+                        t-field="doc.amount_untaxed"
+                        t-options='{"widget": "float", "precision": 0}'/>/-</div>
+            </div>
+        </xpath>
+    </template>
+
     <!-- Add Declaration and Authorised Signatory to sale order PDF -->
     <template id="sale_declaration_signatory"
               inherit_id="sale.report_saleorder_document">
