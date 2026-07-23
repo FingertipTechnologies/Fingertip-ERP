@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_sale_advance_attach_wizard_form" model="ir.ui.view">
+        <field name="name">sale.advance.attach.wizard.form</field>
+        <field name="model">sale.advance.attach.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Attach to Sales Order">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="statement_line_id" readonly="1"/>
+                            <field name="partner_id"/>
+                            <field name="commercial_partner_id" invisible="1"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="amount" widget="monetary"/>
+                            <field name="allocated_total" widget="monetary"/>
+                            <field name="difference" widget="monetary"/>
+                        </group>
+                    </group>
+                    <field name="allocation_line_ids">
+                        <list editable="bottom">
+                            <field name="partner_id" column_invisible="1"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="sale_order_id"
+                                   domain="[('state', '=', 'sale'), ('partner_id', 'child_of', parent.commercial_partner_id)]"
+                                   options="{'no_create': True}"/>
+                            <field name="amount" widget="monetary" sum="Allocated"/>
+                        </list>
+                    </field>
+                    <p class="text-muted">
+                        The allocated total must equal the transaction amount.
+                        A customer advance (inbound payment) will be created and
+                        the bank transaction reconciled to it. Standard
+                        reconciliation is not modified.
+                    </p>
+                </sheet>
+                <footer>
+                    <button name="action_confirm" type="object" string="Attach"
+                            class="btn-primary"
+                            data-hotkey="q"/>
+                    <button string="Cancel" class="btn-secondary"
+                            special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_sale_advance_attach_wizard" model="ir.actions.act_window">
+        <field name="name">Attach to Sales Order</field>
+        <field name="res_model">sale.advance.attach.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_order_form_advance_tracker" model="ir.ui.view">
+        <field name="name">sale.order.form.advance.tracker</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+
+            <!-- Header: allocate advances to the invoice -->
+            <xpath expr="//header" position="inside">
+                <button name="action_allocate_advances_to_invoice"
+                        type="object"
+                        string="Allocate Advances to Invoice"
+                        class="btn-secondary"
+                        invisible="invoice_count == 0 or amount_advance_received == 0 or amount_advance_allocated &gt;= amount_advance_received"/>
+            </xpath>
+
+            <!-- Smart button -->
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button type="object" name="action_view_advances"
+                        class="oe_stat_button" icon="fa-money"
+                        invisible="advance_payment_count == 0">
+                    <field name="advance_payment_count" widget="statinfo"
+                           string="Advances"/>
+                </button>
+            </xpath>
+
+            <!-- Advances notebook page -->
+            <xpath expr="//notebook" position="inside">
+                <page string="Advances" name="advances">
+                    <field name="advance_payment_ids" readonly="1">
+                        <list>
+                            <field name="payment_id"/>
+                            <field name="statement_line_id" optional="hide"/>
+                            <field name="amount" sum="Received" widget="monetary"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="state" widget="badge"
+                                   decoration-info="state == 'received'"
+                                   decoration-success="state == 'allocated'"/>
+                        </list>
+                    </field>
+                    <group class="oe_subtotal_footer">
+                        <field name="amount_advance_received" widget="monetary"/>
+                        <field name="amount_advance_allocated" widget="monetary"/>
+                        <field name="paid_amount" widget="monetary"/>
+                        <field name="balance_amount" widget="monetary"/>
+                    </group>
+                </page>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- Form: show Balance Amount and Paid Amount below Project Status.
+         Inherits the Fingertip form so project_status is guaranteed present. -->
+    <record id="view_order_form_advance_balance" model="ir.ui.view">
+        <field name="name">sale.order.form.advance.balance</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="payment_status_in_sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <field name="project_status" position="after">
+                <field name="balance_amount" widget="monetary"/>
+                <field name="paid_amount" widget="monetary"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Orders list: Paid Amount next to Balance Amount. -->
+    <record id="view_order_tree_advance_paid" model="ir.ui.view">
+        <field name="name">sale.order.tree.advance.paid</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="payment_status_in_sale.view_order_tree"/>
+        <field name="arch" type="xml">
+            <field name="balance_amount" position="after">
+                <field name="paid_amount" sum="Paid Amount" widget="monetary"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- Quotations list: Paid Amount next to Balance Amount. -->
+    <record id="view_quotation_tree_advance_paid" model="ir.ui.view">
+        <field name="name">sale.order.quotation.tree.advance.paid</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id"
+               ref="payment_status_in_sale.view_quotation_tree_with_onboarding"/>
+        <field name="arch" type="xml">
+            <field name="balance_amount" position="after">
+                <field name="paid_amount" sum="Paid Amount" widget="monetary"/>
+            </field>
+        </field>
+    </record>
+
+</odoo>

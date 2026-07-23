@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_sale_advance_payment_salesman,sale.advance.payment salesman,model_sale_advance_payment,sales_team.group_sale_salesman,1,0,0,0
+access_sale_advance_payment_invoice,sale.advance.payment invoicing,model_sale_advance_payment,account.group_account_invoice,1,1,1,0
+access_sale_advance_payment_accountant,sale.advance.payment accountant,model_sale_advance_payment,account.group_account_user,1,1,1,1
+access_sale_advance_attach_wizard_invoice,sale.advance.attach.wizard invoicing,model_sale_advance_attach_wizard,account.group_account_invoice,1,1,1,1
+access_sale_advance_attach_wizard_line_invoice,sale.advance.attach.wizard.line invoicing,model_sale_advance_attach_wizard_line,account.group_account_invoice,1,1,1,1

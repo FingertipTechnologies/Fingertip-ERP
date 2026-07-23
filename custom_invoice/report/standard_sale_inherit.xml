@@ -52,7 +52,7 @@
 <!--        </xpath>-->
 <!--    </template>-->
 
-    <!-- Add Declaration and Authorised Signatory to sale order PDF -->
+    <!-- Add Declaration and Authorised Signatory to     sale order PDF -->
     <template id="sale_declaration_signatory"
               inherit_id="sale.report_saleorder_document">
         <!-- Keep note in its original position, add declaration+signatory after -->
