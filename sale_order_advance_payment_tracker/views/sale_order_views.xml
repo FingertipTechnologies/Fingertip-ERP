@@ -66,26 +66,26 @@
         </field>
     </record>
 
-    <!-- Orders list: Paid Amount next to Balance Amount. -->
+    <!-- Orders list: Paid Amount before Balance Amount. -->
     <record id="view_order_tree_advance_paid" model="ir.ui.view">
         <field name="name">sale.order.tree.advance.paid</field>
         <field name="model">sale.order</field>
         <field name="inherit_id" ref="payment_status_in_sale.view_order_tree"/>
         <field name="arch" type="xml">
-            <field name="balance_amount" position="after">
+            <field name="balance_amount" position="before">
                 <field name="paid_amount" sum="Paid Amount" widget="monetary"/>
             </field>
         </field>
     </record>
 
-    <!-- Quotations list: Paid Amount next to Balance Amount. -->
+    <!-- Quotations list: Paid Amount before Balance Amount. -->
     <record id="view_quotation_tree_advance_paid" model="ir.ui.view">
         <field name="name">sale.order.quotation.tree.advance.paid</field>
         <field name="model">sale.order</field>
         <field name="inherit_id"
                ref="payment_status_in_sale.view_quotation_tree_with_onboarding"/>
         <field name="arch" type="xml">
-            <field name="balance_amount" position="after">
+            <field name="balance_amount" position="before">
                 <field name="paid_amount" sum="Paid Amount" widget="monetary"/>
             </field>
         </field>
