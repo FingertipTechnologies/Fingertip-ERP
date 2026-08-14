@@ -4,7 +4,7 @@ import { _t } from "@web/core/l10n/translation";
 import { patch } from "@web/core/utils/patch";
 import { BankRecButtonList } from "@account_accountant/components/bank_reconciliation/button_list/button_list";
 
-// Add an "Attach to Sales Order" entry to the bank statement line's action
+// Add an "Attach to ProForma" entry to the bank statement line's action
 // dropdown (the "⋮" menu), right after "Reconcile". It records the received
 // amount as a customer advance against one or more Sales Orders. Standard
 // reconciliation is untouched.
@@ -16,7 +16,7 @@ patch(BankRecButtonList.prototype, {
             return buttons;
         }
         const attachButton = {
-            label: _t("Attach to Sales Order"),
+            label: _t("Attach to ProForma"),
             action: this.attachToSalesOrder.bind(this),
             classes: "attach-so-btn",
         };

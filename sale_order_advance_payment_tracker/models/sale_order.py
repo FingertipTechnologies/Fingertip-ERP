@@ -31,12 +31,16 @@ class SaleOrder(models.Model):
                  "invoice_ids.state", "invoice_ids.move_type",
                  "invoice_ids.amount_total", "invoice_ids.amount_residual",
                  "invoice_ids.payment_state",
+                 "invoice_ids.invoice_line_ids.price_total",
+                 "invoice_ids.invoice_line_ids.sale_line_ids",
                  "advance_payment_ids.amount",
                  "advance_payment_ids.move_line_id.amount_residual")
     def _compute_paid_amount(self):
         """Total money received against the order, without double counting.
 
         - Invoice payments: posted invoices' (total - residual), refunds reduce.
+          Only this order's share of each invoice counts, so a single invoice
+          billing several orders does not report its full payment on each one.
           Once an advance is reconciled to an invoice (by either flow), it has
           already lowered that invoice's residual, so it is counted here.
         - Unallocated advances: the still-open residual of each advance's
@@ -45,25 +49,32 @@ class SaleOrder(models.Model):
           whether the advance was applied via our button or the native flow.
         """
         for order in self:
-            invoice_paid = 0.0
-            for invoice in order.invoice_ids.filtered(
-                    lambda m: m.state == "posted"):
-                if invoice.move_type == "out_invoice":
-                    invoice_paid += invoice.amount_total - invoice.amount_residual
-                elif invoice.move_type == "out_refund":
-                    invoice_paid -= invoice.amount_total - invoice.amount_residual
-            advance_unallocated = 0.0
-            for adv in order.advance_payment_ids:
-                if adv.move_line_id:
-                    advance_unallocated += abs(adv.move_line_id.amount_residual)
-            order.paid_amount = invoice_paid + advance_unallocated
+            order.paid_amount = (order._get_invoiced_and_paid()[1]
+                                 + order._get_unallocated_advance_amount())
 
-    @api.depends("amount_total", "paid_amount")
+    def _get_unallocated_advance_amount(self):
+        """Cash received as advances that is not applied to an invoice yet, read
+        from the still-open residual of each advance's receivable credit line."""
+        self.ensure_one()
+        return sum(abs(adv.move_line_id.amount_residual)
+                   for adv in self.advance_payment_ids if adv.move_line_id)
+
+    @api.depends("amount_total",
+                 "invoice_ids.state", "invoice_ids.move_type",
+                 "invoice_ids.amount_total",
+                 "invoice_ids.invoice_line_ids.price_total",
+                 "invoice_ids.invoice_line_ids.sale_line_ids",
+                 "advance_payment_ids.amount",
+                 "advance_payment_ids.move_line_id.amount_residual")
     def _compute_balance_amount(self):
-        """Override of payment_status_in_sale: the balance now nets off both
-        invoice payments and unallocated customer advances (via paid_amount)."""
+        """Override of payment_status_in_sale: on top of what has been invoiced,
+        the balance also nets off advances received but not invoiced yet. Once
+        an advance is allocated to an invoice its residual is zero, so it is
+        then covered by the invoiced part and never counted twice."""
         for order in self:
-            order.balance_amount = order.amount_total - order.paid_amount
+            invoiced = order._get_invoiced_and_paid()[0]
+            order.balance_amount = (order.amount_total - invoiced
+                                    - order._get_unallocated_advance_amount())
 
     @api.depends("amount_total", "advance_payment_ids.amount",
                  "advance_payment_ids.move_line_id.amount_residual")

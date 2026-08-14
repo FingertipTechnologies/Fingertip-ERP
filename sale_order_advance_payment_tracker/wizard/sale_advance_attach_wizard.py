@@ -32,6 +32,12 @@ class SaleAdvanceAttachWizard(models.TransientModel):
     difference = fields.Monetary(
         string="Difference (must be 0)", compute="_compute_allocated_total",
         currency_field="currency_id")
+    amount_remaining = fields.Monetary(
+        string="Remaining to Allocate", compute="_compute_allocated_total",
+        currency_field="currency_id",
+        help="The still unallocated part of the transaction. A new allocation "
+             "line starts with this amount, so a single line covers the whole "
+             "transaction and further lines only split what is left.")
 
     @api.depends("statement_line_id")
     def _compute_partner_id(self):
@@ -43,6 +49,8 @@ class SaleAdvanceAttachWizard(models.TransientModel):
         for wiz in self:
             wiz.allocated_total = sum(wiz.allocation_line_ids.mapped("amount"))
             wiz.difference = wiz.amount - wiz.allocated_total
+            # Never suggest a negative default when lines over-allocate.
+            wiz.amount_remaining = max(wiz.difference, 0.0)
 
     def action_confirm(self):
         self.ensure_one()

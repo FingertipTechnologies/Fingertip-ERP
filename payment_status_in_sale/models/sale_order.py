@@ -65,23 +65,61 @@ class SaleOrder(models.Model):
         for order in self:
             order.total_payment = sum(order.payment_ids.mapped('amount'))
 
+    def _get_invoice_share(self, invoice):
+        """This order's signed (invoiced, paid) share of `invoice`.
+
+        A single invoice may bill several sale orders at once. Counting the
+        whole invoice on each of them makes every order report the combined
+        amount, so the invoice is split by the lines that come from this
+        order: share = this order's lines / all the invoice's product lines.
+        Credit notes are returned negative so callers can just add them up.
+        """
+        self.ensure_one()
+        lines = invoice.invoice_line_ids.filtered(
+            lambda line: line.display_type == 'product')
+        invoice_lines_total = sum(lines.mapped('price_total'))
+        if not invoice_lines_total:
+            return 0.0, 0.0
+        order_share = 0.0
+        for line in lines:
+            orders = line.sale_line_ids.order_id
+            if self in orders:
+                # A line billing several orders (rare) is split evenly rather
+                # than claimed in full by each of them.
+                order_share += line.price_total / len(orders)
+        ratio = order_share / invoice_lines_total
+        sign = -1 if invoice.move_type == 'out_refund' else 1
+        paid = invoice.amount_total - invoice.amount_residual
+        return sign * invoice.amount_total * ratio, sign * paid * ratio
+
+    def _get_invoiced_and_paid(self):
+        """Signed (invoiced, paid) totals over this order's posted invoices,
+        each one limited to the part that belongs to this order."""
+        self.ensure_one()
+        invoiced = paid = 0.0
+        for invoice in self.invoice_ids.filtered(
+                lambda m: m.state == 'posted'
+                and m.move_type in ('out_invoice', 'out_refund')):
+            invoice_share, paid_share = self._get_invoice_share(invoice)
+            invoiced += invoice_share
+            paid += paid_share
+        return invoiced, paid
+
     @api.depends('amount_total', 'invoice_ids.state', 'invoice_ids.move_type',
                  'invoice_ids.amount_total', 'invoice_ids.amount_residual',
-                 'invoice_ids.payment_state')
+                 'invoice_ids.payment_state',
+                 'invoice_ids.invoice_line_ids.price_total',
+                 'invoice_ids.invoice_line_ids.sale_line_ids')
     def _compute_balance_amount(self):
-        """Balance still owed on the order = order total minus what has actually
-        been paid against its posted invoices (credit notes reduce the paid
-        amount). This reflects real invoice payments, not the manual payment
-        lines in the Payments tab, so a fully paid invoice zeroes the balance."""
+        """Balance left on the order = order total minus what has already been
+        invoiced to the customer (credit notes give the amount back).
+
+        The balance drops as soon as an invoice is confirmed, not when it is
+        paid: confirming the invoice is what commits that part of the order.
+        How much of the invoiced amount is still unpaid is `amount_due`, and
+        the cash actually received is `paid_amount`."""
         for order in self:
-            paid = 0.0
-            for invoice in order.invoice_ids.filtered(
-                    lambda m: m.state == 'posted'):
-                if invoice.move_type == 'out_invoice':
-                    paid += invoice.amount_total - invoice.amount_residual
-                elif invoice.move_type == 'out_refund':
-                    paid -= invoice.amount_total - invoice.amount_residual
-            order.balance_amount = order.amount_total - paid
+            order.balance_amount = order.amount_total - order._get_invoiced_and_paid()[0]
 
 
     @api.depends('invoice_ids')
@@ -131,19 +169,11 @@ class SaleOrder(models.Model):
     @api.depends('invoice_ids')
     def _compute_amount_due(self):
         """The function is used to compute the amount due from the invoice and
-        if payment is registered, accounting for exchange rate differences and credit notes."""
+        if payment is registered, accounting for exchange rate differences and
+        credit notes. Only this order's share of each invoice counts, so an
+        invoice covering several orders is not due in full on each of them."""
         for rec in self:
-            total_invoiced = 0
-            total_paid = 0
-            for invoice in rec.invoice_ids.filtered(lambda x: x.state == 'posted'):
-                if invoice.move_type == 'out_invoice':  # Regular invoices
-                    total_invoiced += invoice.amount_total
-                    total_paid += invoice.amount_total - invoice.amount_residual
-                elif invoice.move_type == 'out_refund':  # Credit notes
-                    total_invoiced -= invoice.amount_total
-                    total_paid -= (
-                                invoice.amount_total - invoice.amount_residual)
-
+            total_invoiced, total_paid = rec._get_invoiced_and_paid()
             rec.amount_due = total_invoiced - total_paid
 
     def action_open_business_doc(self):

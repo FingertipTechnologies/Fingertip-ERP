@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Sale Order Advance Payment Tracker",
-    "version": "19.0.1.0.2",
+    "version": "19.0.1.0.4",
     "category": "Sales",
     "summary": "Attach bank receipts to Sales Orders as customer advances before "
                "invoicing, then allocate them to the invoice later.",
@@ -13,7 +13,7 @@ confirmed Sales Orders and tracked as customer advances until they are allocated
 against the final invoice.
 
 This module does NOT modify Odoo's standard accounting reconciliation. It adds:
- * an "Attach to Sales Order" action in the Bank Reconciliation widget,
+ * an "Attach to ProForma" action in the Bank Reconciliation widget,
  * a customer advance = a native inbound Customer Payment,
  * a link model tying each advance split to a Sales Order,
  * an "Allocate Advances to Invoice" button on the Sales Order that uses the

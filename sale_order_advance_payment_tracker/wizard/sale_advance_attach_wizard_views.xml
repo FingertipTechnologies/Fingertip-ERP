@@ -5,7 +5,7 @@
         <field name="name">sale.advance.attach.wizard.form</field>
         <field name="model">sale.advance.attach.wizard</field>
         <field name="arch" type="xml">
-            <form string="Attach to Sales Order">
+            <form string="Attach to ProForma">
                 <sheet>
                     <group>
                         <group>
@@ -19,9 +19,14 @@
                             <field name="amount" widget="monetary"/>
                             <field name="allocated_total" widget="monetary"/>
                             <field name="difference" widget="monetary"/>
+                            <field name="amount_remaining" invisible="1"/>
                         </group>
                     </group>
-                    <field name="allocation_line_ids">
+                    <!-- A new line starts with whatever is left to allocate:
+                         the first line covers the full transaction, the next
+                         ones only what the previous lines did not take. -->
+                    <field name="allocation_line_ids"
+                           context="{'default_amount': amount_remaining}">
                         <list editable="bottom">
                             <field name="partner_id" column_invisible="1"/>
                             <field name="currency_id" column_invisible="1"/>
@@ -50,7 +55,7 @@
     </record>
 
     <record id="action_sale_advance_attach_wizard" model="ir.actions.act_window">
-        <field name="name">Attach to Sales Order</field>
+        <field name="name">Attach to ProForma</field>
         <field name="res_model">sale.advance.attach.wizard</field>
         <field name="view_mode">form</field>
         <field name="target">new</field>
