@@ -77,13 +77,25 @@
                        widget="badge"/>
 
             </xpath>
-            <xpath expr="field[@name='partner_id']" position="after">
-                <field name="project_status" optional="show"/>
+            <xpath expr="//field[@name='user_id']" position="replace"/>
+            <xpath expr="//field[@name='activity_ids']" position="replace"/>
+            <xpath expr="//field[@name='date_order']" position="attributes">
+                <attribute name="optional">show</attribute>
+            </xpath>
+            <xpath expr="//field[@name='amount_total']" position="attributes">
+                <attribute name="optional">show</attribute>
+            </xpath>
+            <xpath expr="//field[@name='state']" position="attributes">
+                <attribute name="optional">show</attribute>
+            </xpath>
+            <xpath expr="//field[@name='invoice_status']" position="attributes">
+                <attribute name="optional">show</attribute>
             </xpath>
             <xpath expr="field[@name='amount_total']" position="after">
-                <field name="balance_amount" sum="Balance Amount" widget="monetary"/>
-                <field name="amount_due" string="Amount Due" sum="Amount Due"
-                       widget="monetary" optional="hide"/>
+                <field name="balance_amount" string="ProForma Balance"
+                       sum="ProForma Balance" widget="monetary"/>
+                <field name="amount_due" string="Invoice Balance" sum="Invoice Balance"
+                       widget="monetary" optional="show"/>
             </xpath>
         </field>
     </record>
@@ -108,13 +120,25 @@
                        decoration-warning="payment_status == 'Partially Paid'"
                        widget="badge"/>
             </xpath>
-             <xpath expr="field[@name='partner_id']" position="after">
-                <field name="project_status" optional="show"/>
+            <xpath expr="//field[@name='user_id']" position="replace"/>
+            <xpath expr="//field[@name='activity_ids']" position="replace"/>
+            <xpath expr="//field[@name='create_date']" position="attributes">
+                <attribute name="optional">show</attribute>
+            </xpath>
+            <xpath expr="//field[@name='amount_total']" position="attributes">
+                <attribute name="optional">show</attribute>
+            </xpath>
+            <xpath expr="//field[@name='state']" position="attributes">
+                <attribute name="optional">show</attribute>
+            </xpath>
+            <xpath expr="//field[@name='invoice_status']" position="attributes">
+                <attribute name="optional">show</attribute>
             </xpath>
             <xpath expr="field[@name='amount_total']" position="after">
-                <field name="balance_amount" sum="Balance Amount" widget="monetary"/>
-                <field name="amount_due" string="Amount Due" sum="Amount Due"
-                       widget="monetary" optional="hide"/>
+                <field name="balance_amount" string="ProForma Balance"
+                       sum="ProForma Balance" widget="monetary"/>
+                <field name="amount_due" string="Invoice Balance" sum="Invoice Balance"
+                       widget="monetary" optional="show"/>
             </xpath>
         </field>
     </record>

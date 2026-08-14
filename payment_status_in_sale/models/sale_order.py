@@ -37,7 +37,7 @@ class SaleOrder(models.Model):
                                     compute="_compute_payment_details",
                                     help="Shows the payment done details "
                                          "including date and amount")
-    amount_due = fields.Float(string="Amount Due",
+    amount_due = fields.Float(string="Invoice Balance",
                               compute='_compute_amount_due',
                               help="Shows the amount that in due for the "
                                    "corresponding sale order")
@@ -55,7 +55,7 @@ class SaleOrder(models.Model):
     )
 
     balance_amount = fields.Monetary(
-        string="Balance Amount",
+        string="ProForma Balance",
         compute='_compute_balance_amount',
         store=True
     )
@@ -278,4 +278,3 @@ class SalePayment(models.Model):
                 ])
             else:
                 rec.payment_domain = json.dumps([])
-
