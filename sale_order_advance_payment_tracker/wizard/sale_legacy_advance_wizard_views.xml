@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sale_legacy_advance_wizard_form" model="ir.ui.view">
+        <field name="name">sale.legacy.advance.wizard.form</field>
+        <field name="model">sale.legacy.advance.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Map Legacy Advance">
+                <sheet>
+                    <group>
+                        <field name="sale_order_id"/>
+                        <field name="partner_id"/>
+                        <field name="commercial_partner_id" invisible="1"/>
+                        <field name="company_id" invisible="1"/>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="move_line_id"
+                               domain="[('parent_state', '=', 'posted'), ('account_id.account_type', '=', 'asset_receivable'), ('partner_id', 'child_of', commercial_partner_id), ('company_id', '=', company_id), ('reconciled', '=', False), ('credit', '&gt;', 0)]"
+                               options="{'no_create': True, 'no_create_edit': True}"/>
+                        <field name="journal_entry_id"/>
+                        <field name="accounting_date"/>
+                        <field name="amount" widget="monetary"/>
+                    </group>
+                    <div class="alert alert-info" role="alert">
+                        This only links the existing open receivable credit to
+                        the Sales Order. It does not create or post a journal entry.
+                    </div>
+                </sheet>
+                <footer>
+                    <button name="action_confirm" type="object" string="Map Advance"
+                            class="btn-primary" data-hotkey="q"/>
+                    <button string="Cancel" class="btn-secondary"
+                            special="cancel" data-hotkey="x"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

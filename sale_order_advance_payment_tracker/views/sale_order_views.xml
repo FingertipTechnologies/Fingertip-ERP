@@ -9,6 +9,12 @@
 
             <!-- Header: allocate advances to the invoice -->
             <xpath expr="//header" position="inside">
+                <button name="action_map_legacy_advance"
+                        type="object"
+                        string="Map Legacy Advance"
+                        class="btn-secondary"
+                        groups="account.group_account_invoice"
+                        invisible="state != 'sale'"/>
                 <button name="action_allocate_advances_to_invoice"
                         type="object"
                         string="Allocate Advances to Invoice"

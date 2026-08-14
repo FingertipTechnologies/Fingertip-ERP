@@ -4,3 +4,4 @@ access_sale_advance_payment_invoice,sale.advance.payment invoicing,model_sale_ad
 access_sale_advance_payment_accountant,sale.advance.payment accountant,model_sale_advance_payment,account.group_account_user,1,1,1,1
 access_sale_advance_attach_wizard_invoice,sale.advance.attach.wizard invoicing,model_sale_advance_attach_wizard,account.group_account_invoice,1,1,1,1
 access_sale_advance_attach_wizard_line_invoice,sale.advance.attach.wizard.line invoicing,model_sale_advance_attach_wizard_line,account.group_account_invoice,1,1,1,1
+access_sale_legacy_advance_wizard_invoice,sale.legacy.advance.wizard invoicing,model_sale_legacy_advance_wizard,account.group_account_invoice,1,1,1,1

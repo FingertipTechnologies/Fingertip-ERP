@@ -8,7 +8,8 @@
             <list string="Advances">
                 <field name="sale_order_id"/>
                 <field name="partner_id"/>
-                <field name="payment_id"/>
+                <field name="payment_id" optional="show"/>
+                <field name="move_line_id" optional="show"/>
                 <field name="statement_line_id" optional="hide"/>
                 <field name="amount" sum="Total" widget="monetary"/>
                 <field name="currency_id" column_invisible="1"/>

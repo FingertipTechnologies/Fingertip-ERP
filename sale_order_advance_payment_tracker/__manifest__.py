@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Sale Order Advance Payment Tracker",
-    "version": "19.0.1.0.5",
+    "version": "19.0.1.0.6",
     "category": "Sales",
     "summary": "Attach bank receipts to Sales Orders as customer advances before "
                "invoicing, then allocate them to the invoice later.",
@@ -25,6 +25,7 @@ This module does NOT modify Odoo's standard accounting reconciliation. It adds:
     "data": [
         "security/ir.model.access.csv",
         "wizard/sale_advance_attach_wizard_views.xml",
+        "wizard/sale_legacy_advance_wizard_views.xml",
         "views/sale_advance_payment_views.xml",
         "views/sale_order_views.xml",
     ],

@@ -34,7 +34,8 @@ class SaleOrder(models.Model):
                  "invoice_ids.invoice_line_ids.price_total",
                  "invoice_ids.invoice_line_ids.sale_line_ids",
                  "advance_payment_ids.amount",
-                 "advance_payment_ids.move_line_id.amount_residual")
+                 "advance_payment_ids.move_line_id.amount_residual",
+                 "advance_payment_ids.move_line_id.amount_residual_currency")
     def _compute_paid_amount(self):
         """Total money received against the order, without double counting.
 
@@ -56,7 +57,7 @@ class SaleOrder(models.Model):
         """Cash received as advances that is not applied to an invoice yet, read
         from the still-open residual of each advance's receivable credit line."""
         self.ensure_one()
-        return sum(abs(adv.move_line_id.amount_residual)
+        return sum(adv._get_open_amount()
                    for adv in self.advance_payment_ids if adv.move_line_id)
 
     @api.depends("amount_total",
@@ -65,7 +66,8 @@ class SaleOrder(models.Model):
                  "invoice_ids.invoice_line_ids.price_total",
                  "invoice_ids.invoice_line_ids.sale_line_ids",
                  "advance_payment_ids.amount",
-                 "advance_payment_ids.move_line_id.amount_residual")
+                 "advance_payment_ids.move_line_id.amount_residual",
+                 "advance_payment_ids.move_line_id.amount_residual_currency")
     def _compute_balance_amount(self):
         """Override of payment_status_in_sale: on top of what has been invoiced,
         the balance also nets off advances received but not invoiced yet. Once
@@ -80,7 +82,8 @@ class SaleOrder(models.Model):
                                     - order._get_unallocated_advance_amount())
 
     @api.depends("amount_total", "advance_payment_ids.amount",
-                 "advance_payment_ids.move_line_id.amount_residual")
+                 "advance_payment_ids.move_line_id.amount_residual",
+                 "advance_payment_ids.move_line_id.amount_residual_currency")
     def _compute_advance_amounts(self):
         for order in self:
             advances = order.advance_payment_ids
@@ -90,7 +93,7 @@ class SaleOrder(models.Model):
             allocated = 0.0
             for adv in advances:
                 if adv.move_line_id:
-                    allocated += adv.amount - abs(adv.move_line_id.amount_residual)
+                    allocated += adv.amount - adv._get_open_amount()
             order.amount_advance_received = received
             order.amount_advance_allocated = allocated
             order.amount_advance_remaining = order.amount_total - received
@@ -105,6 +108,20 @@ class SaleOrder(models.Model):
             "view_mode": "list,form",
             "domain": [("sale_order_id", "=", self.id)],
             "context": {"create": False},
+        }
+
+    def action_map_legacy_advance(self):
+        self.ensure_one()
+        if self.state != "sale":
+            raise UserError(_(
+                "Only confirmed Sales Orders can receive a legacy advance."))
+        return {
+            "type": "ir.actions.act_window",
+            "name": _("Map Legacy Advance"),
+            "res_model": "sale.legacy.advance.wizard",
+            "view_mode": "form",
+            "target": "new",
+            "context": {"default_sale_order_id": self.id},
         }
 
     def action_allocate_advances_to_invoice(self):
