@@ -27,7 +27,7 @@ class SaleOrder(models.Model):
         help="Total paid on this order: payments received through posted "
              "invoices plus customer advances not yet allocated to an invoice.")
 
-    @api.depends("amount_total",
+    @api.depends("state", "amount_total",
                  "invoice_ids.state", "invoice_ids.move_type",
                  "invoice_ids.amount_total", "invoice_ids.amount_residual",
                  "invoice_ids.payment_state",
@@ -72,6 +72,9 @@ class SaleOrder(models.Model):
         an advance is allocated to an invoice its residual is zero, so it is
         then covered by the invoiced part and never counted twice."""
         for order in self:
+            if order.state == "cancel":
+                order.balance_amount = 0.0
+                continue
             invoiced = order._get_invoiced_and_paid()[0]
             order.balance_amount = (order.amount_total - invoiced
                                     - order._get_unallocated_advance_amount())

@@ -105,7 +105,7 @@ class SaleOrder(models.Model):
             paid += paid_share
         return invoiced, paid
 
-    @api.depends('amount_total', 'invoice_ids.state', 'invoice_ids.move_type',
+    @api.depends('state', 'amount_total', 'invoice_ids.state', 'invoice_ids.move_type',
                  'invoice_ids.amount_total', 'invoice_ids.amount_residual',
                  'invoice_ids.payment_state',
                  'invoice_ids.invoice_line_ids.price_total',
@@ -119,7 +119,8 @@ class SaleOrder(models.Model):
         How much of the invoiced amount is still unpaid is `amount_due`, and
         the cash actually received is `paid_amount`."""
         for order in self:
-            order.balance_amount = order.amount_total - order._get_invoiced_and_paid()[0]
+            order.balance_amount = (0.0 if order.state == 'cancel' else
+                                    order.amount_total - order._get_invoiced_and_paid()[0])
 
 
     @api.depends('invoice_ids')
