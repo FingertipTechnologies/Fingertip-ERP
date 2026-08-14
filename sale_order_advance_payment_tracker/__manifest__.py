@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     "name": "Sale Order Advance Payment Tracker",
-    "version": "19.0.1.0.6",
+    "version": "19.0.1.0.7",
     "category": "Sales",
     "summary": "Attach bank receipts to Sales Orders as customer advances before "
                "invoicing, then allocate them to the invoice later.",

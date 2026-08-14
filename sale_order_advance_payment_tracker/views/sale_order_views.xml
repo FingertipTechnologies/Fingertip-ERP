@@ -9,12 +9,6 @@
 
             <!-- Header: allocate advances to the invoice -->
             <xpath expr="//header" position="inside">
-                <button name="action_map_legacy_advance"
-                        type="object"
-                        string="Map Legacy Advance"
-                        class="btn-secondary"
-                        groups="account.group_account_invoice"
-                        invisible="state != 'sale'"/>
                 <button name="action_allocate_advances_to_invoice"
                         type="object"
                         string="Allocate Advances to Invoice"
@@ -56,6 +50,17 @@
             </xpath>
 
         </field>
+    </record>
+
+    <record id="action_map_legacy_advance" model="ir.actions.server">
+        <field name="name">Map Legacy Advance</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="binding_model_id" ref="sale.model_sale_order"/>
+        <field name="binding_view_types">form</field>
+        <field name="group_ids"
+               eval="[(4, ref('account.group_account_invoice'))]"/>
+        <field name="state">code</field>
+        <field name="code">action = records.action_map_legacy_advance()</field>
     </record>
 
     <!-- Form: show Balance Amount and Paid Amount below Project Status.
