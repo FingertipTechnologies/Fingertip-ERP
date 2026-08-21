@@ -24,7 +24,7 @@
     'version': '19.0.1.0.6',
     'category': 'Sales',
     'summary': 'Displays the payment status and details in the Sale Order.',
-    'description': """This module is used to display the invoice status of the
+    'description': """Thiss module is used to display the invoice status of the
                     corresponding sale order in the form view. It provides details about the
                     sale order's payment status, payment information and the amount due.""",
     'author': 'Cybrosys Techno Solutions',
