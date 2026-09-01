@@ -11,6 +11,12 @@
     <template id="move_narration_left"
               inherit_id="account.report_invoice_document">
 
+        <!-- Payment references remain available on the invoice record, but are
+             intentionally omitted from the printed customer invoice. -->
+        <xpath expr="//p[@name='payment_communication']" position="attributes">
+            <attribute name="t-if">False</attribute>
+        </xpath>
+
         <!-- Remove narration from its original position -->
         <xpath expr="//div[@name='comment']" position="replace"/>
 
@@ -19,12 +25,16 @@
             <div t-if="not is_html_empty(o.narration)" name="comment" class="mt-3" style="clear:both;">
                 <span t-field="o.narration"/>
             </div>
+            <!-- Keep Odoo's complete payment-terms block, but show it after
+                 the bank details stored in the invoice narration. -->
+            <xpath expr="//div[span[@id='payment_terms_note_id']]" position="move"/>
             <table style="width:100%; clear:both; margin-top:10px; border-collapse:collapse;">
                 <tr>
-                    <td style="width:45%; vertical-align:top; padding-right:20px;">
-                        <strong>Declaration</strong><br/>
-                        We declare that this invoice shows the actual price of the goods/<br/>
-                        Services described and that all particulars are true and correct
+                    <td style="width:45%; vertical-align:top; padding:8px 16px 8px 8px;">
+                        <strong>Declaration</strong>
+                        <div style="margin-top:4px; line-height:1.4;">
+                            We declare that this invoice shows the actual price of the goods/services described and that all particulars are true and correct.
+                        </div>
                     </td>
                     <td style="width:55%; vertical-align:top; text-align:center;">
 
