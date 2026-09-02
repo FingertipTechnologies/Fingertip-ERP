@@ -1,7 +1,7 @@
 {
     'name': 'Project Custom Milestone',
     'version': '1.0',
-    'summary': 'Manage project milestones with payment tracking.',
+    'summary': 'Manage project milestones with payment tracking',
     'category': 'Project',
     'author': 'Your Company',
     'depends': ['project','sale'],
