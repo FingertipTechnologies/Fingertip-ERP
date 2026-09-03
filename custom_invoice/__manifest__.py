@@ -7,6 +7,7 @@
     "data": [
         "data/cash_rounding.xml",
         "views/account_move_views.xml",
+        "views/sale_order_views.xml",
         "report/invoice_report.xml",
         "report/standard_invoice_inherit.xml",
         "report/standard_sale_inherit.xml",

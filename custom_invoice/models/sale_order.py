@@ -1,5 +1,7 @@
-from odoo import models, fields, api
 from datetime import datetime
+
+from odoo import _, api, fields, models
+from odoo.exceptions import UserError
 
 DEFAULT_BANK_NOTE = """<p><b>Please transfer to below Bank Details</b><br/>
 Bank Name : <b>HDFC Bank Ltd</b><br/>
@@ -83,6 +85,20 @@ class SaleOrder(models.Model):
         values = super()._prepare_invoice()
         values['invoice_cash_rounding_id'] = self.invoice_cash_rounding_id.id
         return values
+
+    def write(self, vals):
+        """Allow reference changes only while the document is a quotation."""
+        if 'name' in vals:
+            locked_orders = self.filtered(
+                lambda order: order.state != 'draft'
+                and order.name != vals['name']
+            )
+            if locked_orders:
+                raise UserError(_(
+                    "The quotation number can only be changed while the "
+                    "document is in the Quotation stage."
+                ))
+        return super().write(vals)
 
     @api.model_create_multi
     def create(self, vals_list):
