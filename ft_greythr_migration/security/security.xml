@@ -1,0 +1,1 @@
+<odoo><record id="ctc_company_rule" model="ir.rule"><field name="name">CTC allowed companies</field><field name="model_id" ref="model_ft_greythr_ctc"/><field name="domain_force">[('company_id', 'in', company_ids)]</field></record></odoo>

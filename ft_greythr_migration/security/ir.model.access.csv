@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_ctc_user,CTC payroll read,model_ft_greythr_ctc,hr_payroll.group_hr_payroll_user,1,0,0,0
+access_ctc_manager,CTC payroll manager,model_ft_greythr_ctc,hr_payroll.group_hr_payroll_manager,1,1,1,1

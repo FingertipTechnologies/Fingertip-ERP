@@ -1,0 +1,1 @@
+{'name': 'Fingertip greytHR Migration', 'version': '19.0.1.0.0', 'author': 'Fingertip', 'license': 'LGPL-3', 'depends': ['l10n_in_hr_payroll'], 'data': ['security/security.xml', 'security/ir.model.access.csv', 'views/hr_employee.xml'], 'installable': True}
