@@ -1,0 +1,431 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <record id="greythr_structure_type" model="hr.payroll.structure.type">
+        <field name="name">Fingertip: greytHR Monthly</field>
+        <field name="country_id" ref="base.in"/>
+        <field name="wage_type">monthly</field>
+        <field name="default_schedule_pay">monthly</field>
+    </record>
+    <record id="greythr_structure" model="hr.payroll.structure">
+        <field name="name">Fingertip: greytHR Monthly</field>
+        <field name="code">FT_GREYTHR</field>
+        <field name="country_id" ref="base.in"/>
+        <field name="type_id" ref="greythr_structure_type"/>
+        <field name="report_id" ref="l10n_in_hr_payroll.action_report_payslip_in"/>
+        <field name="rule_ids" eval="[]"/>
+        <field name="unpaid_work_entry_type_ids" eval="[(4, ref('hr_work_entry.work_entry_type_unpaid_leave'))]"/>
+        <field name="note">Monthly greytHR earnings and separate employer CTC costs. Source gross reconciliation is displayed explicitly. Review statutory deductions before confirming.</field>
+    </record>
+    <record id="greythr_structure_type" model="hr.payroll.structure.type">
+        <field name="default_struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_employer_category" model="hr.salary.rule.category">
+        <field name="name">Employer CTC Costs</field>
+        <field name="code">FT_EMPLOYER</field>
+        <field name="country_id" ref="base.in"/>
+    </record>
+    <record id="greythr_info_category" model="hr.salary.rule.category">
+        <field name="name">CTC Reconciliation Information</field>
+        <field name="code">FT_CTC_INFO</field>
+        <field name="country_id" ref="base.in"/>
+    </record>
+    <record id="greythr_rule_basic" model="hr.salary.rule">
+        <field name="category_id" ref="hr_payroll.BASIC"/>
+        <field name="name">Basic Salary</field>
+        <field name="sequence">1</field>
+        <field name="code">BASIC</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_basic')</field>
+        <field name="struct_id" ref="greythr_structure"/>
+        <field name="condition_select">none</field>
+    </record>
+    <record id="greythr_rule_hra" model="hr.salary.rule">
+        <field name="code">HRA</field>
+        <field name="name">House Rent Allowance</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="sequence" eval="16"/>
+        <field name="condition_select">none</field>
+        <field name="condition_python">result = bool(version.l10n_in_hra_percentage)</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_hra')</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_lta" model="hr.salary.rule">
+        <field name="code">LTA</field>
+        <field name="name">Leave Travel Allowance</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="sequence" eval="26"/>
+        <field name="condition_select">none</field>
+        <field name="condition_python">result = bool(version.l10n_in_leave_travel_percentage)</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_leave_travel_allowance')</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_spl" model="hr.salary.rule">
+        <field name="code">SPL</field>
+        <field name="name">Special Allowance</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="sequence" eval="31"/>
+        <field name="condition_select">none</field>
+        <field name="condition_python">result = bool(version.l10n_in_fixed_allowance_percentage)</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_special_allowance')</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_mob" model="hr.salary.rule">
+        <field name="code">MOB</field>
+        <field name="name">Telephone Allowance</field>
+        <field name="sequence" eval="32"/>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="condition_select">none</field>
+        <field name="condition_python">result = bool(version.l10n_in_phone_subscription)</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_telephone_charges')</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_meal" model="hr.salary.rule">
+        <field name="code">MEAL</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="name">Meal Allowance</field>
+        <field name="sequence" eval="36"/>
+        <field name="condition_select">none</field>
+        <field name="condition_python">result = bool(version.l10n_in_meal_voucher_amount)</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_meal_allowance')</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_car" model="hr.salary.rule">
+        <field name="code">CAR</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="name">Conveyance Allowance</field>
+        <field name="sequence" eval="38"/>
+        <field name="condition_select">none</field>
+        <field name="condition_python">result = bool(version.l10n_in_company_transport)</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_conveyance')</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_gross" model="hr.salary.rule">
+        <field name="category_id" ref="hr_payroll.GROSS"/>
+        <field name="name">Gross Earnings</field>
+        <field name="sequence">100</field>
+        <field name="code">GROSS</field>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = categories['BASIC'] + categories['ALW']</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_pt" model="hr.salary.rule">
+        <field name="code">PT</field>
+        <field name="name">Professional Tax</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="sequence" eval="104"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = bool(version.l10n_in_pt and version.pt_rule_parameter_id)</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">
+result = 0
+tax_slabs = payslip._rule_parameter(version.pt_rule_parameter_id.code)
+if isinstance(tax_slabs, dict):
+    gender = version.sex if version.sex in ['male', 'female'] else 'male'
+    slabs = tax_slabs.get(gender, [])
+else:
+    slabs = tax_slabs
+for amount, (lower, upper) in slabs:
+    if float(lower) &lt;= categories['GROSS'] &lt;= float(upper):
+        result = -amount
+        break
+        </field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_pf" model="hr.salary.rule">
+        <field name="code">PF</field>
+        <field name="name">Provident fund - Employee</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="sequence" eval="107"/>
+        <field name="condition_select">none</field>
+        <field name="condition_python">result = version.l10n_in_provident_fund and version.l10n_in_pf_employee_amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -payslip._greythr_pf()</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_pfe" model="hr.salary.rule">
+        <field name="code">PFE</field>
+        <field name="name">Provident fund - Employer</field>
+        <field name="category_id" ref="greythr_employer_category"/>
+        <field name="sequence" eval="110"/>
+        <field name="condition_select">none</field>
+        <field name="condition_python">result = version.l10n_in_provident_fund and version.l10n_in_pf_employer_amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_pf()</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_med" model="hr.salary.rule">
+        <field name="code">MED</field>
+        <field name="name">Medical Insurance</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="sequence" eval="113"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = bool(version.l10n_in_medical_insurance_total)</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -version.l10n_in_medical_insurance_total</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_gratuity" model="hr.salary.rule">
+        <field name="code">GRATUITY</field>
+        <field name="name">Gratuity Provision (Employer)</field>
+        <field name="category_id" ref="greythr_employer_category"/>
+        <field name="sequence" eval="112"/>
+        <field name="condition_select">none</field>
+        <field name="condition_python">result = bool(version.l10n_in_gratuity)</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_gratuity')</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_esics" model="hr.salary.rule">
+        <field name="code">ESICS</field>
+        <field name="name">Employee's State Insurance Corporation</field>
+        <field name="sequence" eval="114"/>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">
+threshold = payslip._rule_parameter('l10n_in_esicf_value')
+result = version.l10n_in_esic and version.l10n_in_esic_employee_percentage and version.l10n_in_esic_employer_percentage and categories['GROSS'] &lt;= threshold
+        
+result = result and employee.greythr_esi_eligible</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">
+result = -categories['GROSS']
+result_rate = version.l10n_in_esic_employee_percentage * 100
+        </field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_esicf" model="hr.salary.rule">
+        <field name="code">ESICF</field>
+        <field name="name">Employer's State Insurance Corporation</field>
+        <field name="sequence" eval="116"/>
+        <field name="category_id" ref="greythr_employer_category"/>
+        <field name="condition_select">none</field>
+        <field name="condition_python">
+threshold = payslip._rule_parameter('l10n_in_esicf_value')
+result = version.l10n_in_esic and version.l10n_in_esic_employee_percentage and version.l10n_in_esic_employer_percentage and categories['GROSS'] &lt;= threshold
+        </field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_employer_esic')</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_lwfe" model="hr.salary.rule">
+        <field name="code">LWFE</field>
+        <field name="name">Employee's Deduction Towards State Labour Welfare Fund</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="sequence" eval="118"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">
+result = bool(version.l10n_in_labour_welfare and version.l10n_in_lwf_employee_contribution)
+        </field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -version.l10n_in_lwf_employee_contribution</field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_lwf" model="hr.salary.rule">
+        <field name="code">LWF</field>
+        <field name="name">Employer's Deduction Towards State Labour Welfare Fund </field>
+        <field name="category_id" ref="greythr_employer_category"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">
+result = bool(version.l10n_in_labour_welfare and version.l10n_in_lwf_employer_contribution)
+        </field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = version.l10n_in_lwf_employer_contribution</field>
+        <field name="sequence" eval="120"/>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_tds" model="hr.salary.rule">
+        <field name="code">TDS</field>
+        <field name="name">Tax Deducted at Source</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = bool(version.l10n_in_tds)</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -(version.l10n_in_tds)</field>
+        <field name="sequence" eval="140"/>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_attach_salary" model="hr.salary.rule">
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="name">Attachment of Salary</field>
+        <field name="sequence">174</field>
+        <field name="code">ATTACH_SALARY</field>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'ATTACH_SALARY' in inputs</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">
+result = -inputs['ATTACH_SALARY'].amount
+result_name = inputs['ATTACH_SALARY'].name
+        </field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_assig_salary" model="hr.salary.rule">
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="name">Assignment of Salary</field>
+        <field name="sequence">174</field>
+        <field name="code">ASSIG_SALARY</field>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'ASSIG_SALARY' in inputs</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">
+result = -inputs['ASSIG_SALARY'].amount
+result_name = inputs['ASSIG_SALARY'].name
+        </field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_child_support" model="hr.salary.rule">
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="name">Child Support</field>
+        <field name="code">CHILD_SUPPORT</field>
+        <field name="amount_select">code</field>
+        <field name="sequence">174</field>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'CHILD_SUPPORT' in inputs</field>
+        <field name="amount_python_compute">
+result = -inputs['CHILD_SUPPORT'].amount
+result_name = inputs['CHILD_SUPPORT'].name
+        </field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_expenses" model="hr.salary.rule">
+        <field name="name">Expenses Reimbursement</field>
+        <field name="code">EXPENSES</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="sequence" eval="190"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = inputs['EXPENSES'].amount &gt; 0.0 if 'EXPENSES' in inputs else False</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">
+result = inputs['EXPENSES'].amount
+result_name = inputs['EXPENSES'].name
+        </field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_deduction" model="hr.salary.rule">
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="name">Deduction</field>
+        <field name="sequence">198</field>
+        <field name="code">DEDUCTION</field>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'DEDUCTION' in inputs</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">
+result = -inputs['DEDUCTION'].amount
+result_name = inputs['DEDUCTION'].name
+        </field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_reimbursement" model="hr.salary.rule">
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="name">Reimbursement</field>
+        <field name="sequence">199</field>
+        <field name="code">REIMBURSEMENT</field>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'REIMBURSEMENT' in inputs</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">
+result = inputs['REIMBURSEMENT'].amount
+result_name = inputs['REIMBURSEMENT'].name
+        </field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_net" model="hr.salary.rule">
+        <field name="category_id" ref="hr_payroll.NET"/>
+        <field name="name">Net Salary</field>
+        <field name="sequence">200</field>
+        <field name="code">NET</field>
+        <field name="appears_on_employee_cost_dashboard" eval="True"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">
+result = categories['BASIC'] + categories['ALW'] + categories['DED']
+        </field>
+        <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_medalw" model="hr.salary.rule">
+        <field name="name">Medical Allowance</field>
+        <field name="code">MEDALW</field>
+        <field name="sequence">50</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="struct_id" ref="greythr_structure"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_medical_allowance')</field>
+    </record>
+    <record id="greythr_rule_consult" model="hr.salary.rule">
+        <field name="name">Consultancy Fees</field>
+        <field name="code">CONSULT</field>
+        <field name="sequence">51</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="struct_id" ref="greythr_structure"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_consultancy_fees')</field>
+    </record>
+    <record id="greythr_rule_edualw" model="hr.salary.rule">
+        <field name="name">Children Education Allowance</field>
+        <field name="code">EDUALW</field>
+        <field name="sequence">52</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="struct_id" ref="greythr_structure"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_children_education_allowance')</field>
+    </record>
+    <record id="greythr_rule_attire" model="hr.salary.rule">
+        <field name="name">Attire Allowance</field>
+        <field name="code">ATTIRE</field>
+        <field name="sequence">53</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="struct_id" ref="greythr_structure"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_attire_allowance')</field>
+    </record>
+    <record id="greythr_rule_books" model="hr.salary.rule">
+        <field name="name">Books and Periodicals</field>
+        <field name="code">BOOKS</field>
+        <field name="sequence">54</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="struct_id" ref="greythr_structure"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_component('full_book_and_periodicals')</field>
+    </record>
+    <record id="greythr_rule_gross_recon" model="hr.salary.rule">
+        <field name="name">Source Gross Reconciliation</field>
+        <field name="code">GROSS_RECON</field>
+        <field name="sequence">99</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="struct_id" ref="greythr_structure"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip.currency_id.round(payslip.paid_amount - categories['BASIC'] - categories['ALW'])</field>
+    </record>
+    <record id="greythr_rule_ctc_total" model="hr.salary.rule">
+        <field name="name">Calculated Employer CTC</field>
+        <field name="code">CTC_TOTAL</field>
+        <field name="sequence">210</field>
+        <field name="category_id" ref="greythr_info_category"/>
+        <field name="struct_id" ref="greythr_structure"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = categories['GROSS'] + categories['FT_EMPLOYER']</field>
+    </record>
+    <record id="greythr_rule_ctc_diff" model="hr.salary.rule">
+        <field name="name">Source CTC Difference (Information)</field>
+        <field name="code">CTC_DIFF</field>
+        <field name="sequence">211</field>
+        <field name="category_id" ref="greythr_info_category"/>
+        <field name="struct_id" ref="greythr_structure"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip.currency_id.round(payslip._greythr_ctc().monthly_ctc * payslip._greythr_factor() - categories['GROSS'] - categories['FT_EMPLOYER'])</field>
+    </record>
+</odoo>

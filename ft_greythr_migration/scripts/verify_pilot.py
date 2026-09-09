@@ -21,5 +21,5 @@ try:
 except AccessError:
     pass
 assert 'greythr_source_basic' not in env['hr.employee'].with_user(public).fields_get()
-assert not env['hr.payslip'].search_count([('employee_id', '=', e.id)])
-print('VERIFIED: persisted employee, dates, wage, original columns, no duplicate, merged form, restricted access, no payslips')
+assert not env['hr.payslip'].search_count([('employee_id', '=', e.id), ('state', 'not in', ['draft', 'cancel'])])
+print('VERIFIED: persisted employee, dates, wage, original columns, no duplicate, merged form, restricted access, no confirmed payslips')

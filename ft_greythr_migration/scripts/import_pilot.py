@@ -73,7 +73,7 @@ earnings = sum(Decimal(c[k]) for k in c if k.startswith('FULL ') and k not in ('
 notes = [f'Source earnings sum {earnings}; reported gross {c["MONTHLY GROSS"]}; difference {earnings - Decimal(c["MONTHLY GROSS"])}.',
     'Reported CTC less gross and gratuity: ' + str(Decimal(c['MONTHLY CTC']) - Decimal(c['MONTHLY GROSS']) - Decimal(c['FULL GRATUITY'])) + '; employer PF is not explicitly supplied.',
     'Company PF and ESIC settings are off. Source eligibility is retained without changing company settings.',
-    'Odoo standard salary components/rules have not been reconciled with source. Do not use this record for live payroll yet.',
+    'Use Apply to Payroll on this CTC, then review a draft payslip and statutory deductions before confirming payroll.',
     'Marital status is Not Provided; nationality is empty, not inferred.',
     'Years In Service is retained in original source only; its unit/reference date is unclear.']
 vals['review_notes'] = '\n'.join(notes)

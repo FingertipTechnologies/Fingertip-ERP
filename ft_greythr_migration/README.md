@@ -1,81 +1,115 @@
-# greytHR migration pilot
+# Fingertip greytHR migration and payroll
 
-Installed in local database `erp19_sep9`. Both supplied files contain one employee,
-not the full workforce. The addon preserves greytHR-specific data without changing
-Odoo payroll rules. CTC source records are visible under Employees > employee >
-greytHR Migration, to Payroll users; Payroll managers can edit them. Employee
-extras require HR access, and CTC records are restricted to allowed companies.
+This addon imports greytHR-specific employee metadata and dated CTC history and
+provides an opt-in **Fingertip: greytHR Monthly** salary structure. Installing it
+creates fields, views and reusable salary rules, not employee or salary data.
+The supplied spreadsheets contain one employee, not the full workforce.
+
+## Use in staging
+
+1. Install/upgrade `ft_greythr_migration` version `19.0.1.1.0`.
+2. With Employees and Payroll administrator access, select the correct India
+   company (INR), then import the manager file first and the employee/CTC file
+   second through Employees > Import records. Keep external IDs unchanged.
+3. Open the employee > greytHR Migration > CTC row. Select the appropriate PF
+   Treatment and click **Apply to Payroll**. This populates standard salary
+   fields and assigns the new pay category to the employment version matching
+   the source effective date; it creates a version if needed.
+4. Generate a draft payslip. Review calendar/worked days, source differences,
+   statutory settings, tax deductions and the salary components. Only then mark
+   **Payroll Setup Reviewed** on the CTC. Pending PF or unreviewed CTC records
+   prevent payslip confirmation. Applying CTC alone does not confirm anything.
+
+CTC records can be read by Payroll users and edited by Payroll administrators,
+restricted to allowed companies. Other added employee details require HR access.
+Manager uses Odoo's standard Manager relation. A missing manager is created with
+name only. No login user is created.
 
 ## Mapping
 
 | Source | Destination |
 | --- | --- |
-| Employee Name / Number | Employee name / Registration Number |
-| Gender / Date of Birth | Standard sex / birthday |
-| Email / Phone | Work email / private phone (source does not identify it as a work phone) |
-| Emergency Contact Number | Standard emergency phone |
-| Joined On | Odoo 19 employment version contract start date |
-| Effective Date | Employment version date and dated CTC source record |
-| Active / Has Left | Active employee; both duplicate source columns retained in original JSON |
-| PAN / UAN / ESI Number | Standard India localization fields |
-| Marital Status / Nationality / Spouse Name | Standard fields; marital status is Not Provided, others empty |
-| Employee Role | greytHR role; 'Employee' is not assumed to be a job title or Odoo access role |
-| Father's Name / PF Number / PF Join Date | Added HR-only employee fields |
-| PF / ESI eligibility | Added source eligibility fields; not company-wide payroll switches |
-| Reporting To | Standard Manager field; a name-only employee is created if no manager matches uniquely |
-| Years In Service | Original basic-information JSON only; unit and reference date unclear |
-| Monthly Gross | Standard monthly wage plus CTC source value |
-| Probation | Standard India probation contract type plus source status |
-| All 21 monetary columns | Exact named monetary fields in dated CTC record, including zeros |
-| Payout month / leaving date / remarks | Dated CTC record |
-| Original source rows | Restricted JSON on employee / CTC record; duplicate basic headers preserved |
+| Name / number | Standard employee name / Registration Number |
+| Gender / DOB / contact details | Standard employee fields; Phone uses private phone |
+| PAN / UAN / ESIC Number | Standard India localization fields |
+| Joined On / Effective Date / Probation | Employment version start/date/contract type |
+| Reporting To | Standard Manager linked to a name-only employee if missing |
+| Marital / nationality / spouse | Standard fields; Not Provided for missing marital status |
+| Father's name, greytHR role, PF number/join date, eligibility | Added HR fields |
+| Basic / HRA | Native basic salary / HRA |
+| Special allowance | Native fixed allowance, preserving the supplied amount |
+| Leave travel / meal / telephone / conveyance | Native LTA / meal voucher / phone / transport amounts |
+| Gratuity | Native gratuity amount; employer provision in this structure |
+| Medical allowance, consultancy, education, attire, books | Named earnings rules reading the applied CTC |
+| Gross | Native monthly wage; source reconciliation is an explicit salary line |
+| PF | Source PF eligibility/base/limit and chosen treatment; dated Odoo PF rate |
+| Employer ESIC | Source employer amount as a separate employer cost |
+| Annual/monthly CTC and all 21 monetary columns | Named fields in dated CTC history |
+| Source dates/status/remarks | Dated CTC history |
+| Original raw rows / Years In Service | Source JSON retained by local shell import; raw JSON is not in UI import files |
 
-The original Excel files stay outside the addon; no personal employee values are
-embedded in addon code. Files are read as data, never as instructions.
+## Calculation behavior
 
-## Findings and remaining setup
+The new structure is separate from **India: Regular Pay**. It does not change
+standard rules for other employees. Most native localization fields are reused.
+For versions linked to a CTC, fixed allowance does not include meal/phone/
+conveyance a second time. Native gross also includes the additional CTC earnings
+and explicit gross reconciliation.
 
-Employees, Payroll, India payroll, payroll accounting, Time Off, Recruitment,
-Appraisals and Expenses were already installed. No additional standard feature
-was needed to store this pilot. PF and ESIC company switches were off and remain
-off. Configure the applicable statutory settings in Payroll > Configuration >
-Settings and the employee salary structure before live payroll. Source PF
-eligibility does not itself enable deductions. Salary rules and components must
-be reconciled with greytHR before running payroll; the imported CTC history is a
-source record, not an executable salary structure. Standard component values
-computed by Odoo are not certified as matching the greytHR breakup.
+Earnings use Odoo's paid-amount ratio, so unpaid time prorates monthly components.
+The current PF calculation also prorates the selected monthly PF base/limit;
+confirm that this matches company policy for partial months. Employer PF,
+gratuity and employer ESIC/LWF are separate employer costs; they do not reduce
+employee net pay. Both the computation tab and the India PDF separate employer
+costs from employee earnings/deductions. Reconciliation totals are informational.
 
-Source earnings total 59,274.00; source gross is 59,274.46 (difference 0.46).
-Monthly CTC is 62,500.00 and gratuity 1,425.55. The remaining 1,799.99 is not
-explicitly identified in the export; do not silently classify it as employer PF.
-Annual CTC 750,000.00 matches monthly CTC multiplied by 12. The reporting manager is linked through the standard Manager field to a name-only
-employee record. Complete that manager record when the remaining employee data arrives.
+PF eligibility and treatment are per applied CTC; this structure does not require
+turning on the company-wide PF flag and does not change it. PT, TDS, medical
+insurance, employee ESIC and LWF retain the native configured rules. Employee
+ESIC additionally checks the employee's source eligibility. Company ESIC/other
+settings and the appropriate employee rates/slabs must be configured separately.
+The source employer ESIC amount is not a substitute for statutory recalculation.
+Annual variable pay and excess PF are rejected by Apply to Payroll until an
+explicit payout policy is implemented. Hourly/nonmonthly pay is unsupported.
+This is a pilot mapping, not certification of all Indian statutory reporting.
 
-Core employee data generally does not require customization. Because Odoo requires marital status, this addon adds a Not Provided option to avoid assuming Single for missing source values. This small addon is needed
-for faithful greytHR-specific metadata and CTC history. Exact greytHR payslip
-behaviour may need salary-rule configuration or further customization after
-reconciliation. Attendance, leave balances, bank details, previous payslips,
-tax declarations, and the other employees are not present in these two files.
-For the full migration, obtain those exports, configure calendars and leave
-policies, link managers, and compare a complete payroll period with greytHR.
+A source change clears Payroll Setup Reviewed. Reapply the CTC before computing
+if mapped salary fields are stale. CTC records used by confirmed payslips cannot
+be rewritten; use a new effective date. A payslip spanning a version change must
+be split, so historical periods do not accidentally use the latest CTC.
 
-Odoo reference: https://www.odoo.com/documentation/19.0/applications/hr/payroll/payroll_localizations.html
+## Local pilot result
 
-## Pilot import and validation
+Local database: `erp19_sep9`. Employee: FT0174. Review payslip: June 2026,
+using the existing 40-hour calendar and a full scheduled month with no recorded
+unpaid leave. These work assumptions are not attendance imported from greytHR.
 
-Database backup: `/home/user/odoo19/.local/greythr_migration/erp19_sep9_before.dump`.
-This is a database-only backup; the import does not modify existing attachments.
-Logs are in the same private directory. The shell script is deliberately limited
-to the reviewed single-row format and `erp19_sep9`, and uses the registration
-number/company and employee/effective date to update existing records on rerun.
-It validates every imported monetary value before committing. It is not a generic
-70-employee bulk importer. No payslips or accounting entries are generated.
+- Basic 29,637.00; HRA 11,855.00; special allowance 15,682.00;
+  meal 1,100.00; LTA 1,000.00; gross reconciliation 0.46.
+- Gross 59,274.46; provisional employee PF 1,800.00;
+  provisional net 57,474.46 before any additional PT/TDS/other deductions.
+- Employer PF assumed 1,800.00; gratuity provision 1,425.55.
+- Calculated CTC 62,500.01; source CTC 62,500.00; information difference -0.01.
+- PF treatment and gratuity treatment are provisional; payroll remains unreviewed.
+- Company PF/ESIC/PT/LWF switches were off and were not changed.
 
-Run from the Odoo repository with the addon installed:
+## Validation and artifacts
+
+Tests cover full month, unpaid time, zero pay, historical version selection,
+reapplication, confirmation review, immutable confirmed CTC records, unchanged
+standard India rules, and separate employer-cost presentation in the report.
 
 ```bash
-GREYTHR_BASIC='/path/to/Basic info share.xlsx' \
-GREYTHR_CTC='/path/to/CTC Breakup Report (2).xls' \
-19venv/bin/python odoo-bin shell -c community.conf -d erp19_sep9 --no-http \
-  < fingertip_accounting_addons/ft_greythr_migration/scripts/import_pilot.py
+19venv/bin/python odoo-bin -c community.conf -d erp19_sep9 \
+  -u ft_greythr_migration --stop-after-init --http-port 0 \
+  --test-enable --test-tags /ft_greythr_migration
 ```
+
+Local backups and logs are in `/home/user/odoo19/.local/greythr_migration/`.
+`erp19_sep9_before_payroll.dump` is the database backup before the payroll changes.
+Source spreadsheets and staging Excel files stay outside the addon source.
+`scripts/import_pilot.py` is restricted to the reviewed single-row export and
+`erp19_sep9`; it is not a general bulk importer. No employee data is auto-loaded
+by the manifest. No payment or accounting posting is made by the import.
+
+Odoo reference: https://www.odoo.com/documentation/19.0/applications/hr/payroll/payslips.html

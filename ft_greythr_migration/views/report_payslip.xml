@@ -1,0 +1,47 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <template id="report_payslip_greythr" inherit_id="l10n_in_hr_payroll.report_payslip_in">
+        <xpath expr="//t[@t-set='earnings_lines']" position="attributes">
+            <attribute name="t-value">o.line_ids.filtered(lambda line: line.appears_on_payslip and line.category_id.code in ('BASIC', 'ALW')) if o.structure_code == 'FT_GREYTHR' else o.line_ids.filtered(lambda line: line.appears_on_payslip and line.total &gt;= 0 and 'NET' not in line.category_id.code)</attribute>
+        </xpath>
+        <xpath expr="//t[@t-set='deductions_lines']" position="attributes">
+            <attribute name="t-value">o.line_ids.filtered(lambda line: line.appears_on_payslip and line.category_id.code == 'DED') if o.structure_code == 'FT_GREYTHR' else o.line_ids.filtered(lambda line: line.appears_on_payslip and line.amount &lt; 0)</attribute>
+        </xpath>
+        <xpath expr="//strong/t[contains(@t-out, 'abs(sum(o.line_ids.filtered')]" position="attributes">
+            <attribute name="t-out">abs(sum(deductions_lines.mapped('total')))</attribute>
+        </xpath>
+        <xpath expr="//td/t[contains(@t-out, 'abs(sum(o.line_ids.filtered')]" position="attributes">
+            <attribute name="t-out">abs(sum(deductions_lines.mapped('total')))</attribute>
+        </xpath>
+        <xpath expr="//t[@t-set='allocations']" position="before">
+            <div t-if="o.structure_code == 'FT_GREYTHR'" class="mt-3" name="greythr_employer_costs">
+                <h6>Employer CTC Costs — Excluded from Take-home Pay</h6>
+                <table class="table table-sm">
+                    <tbody>
+                        <tr t-foreach="o.line_ids.filtered(lambda line: line.category_id.code in ('FT_EMPLOYER', 'FT_CTC_INFO'))" t-as="cost">
+                            <td><span t-field="cost.name"/></td>
+                            <td class="text-end"><span t-field="cost.total" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p t-if="not o.version_id.greythr_ctc_id.payroll_reviewed">
+                    Draft calculation for review. PF treatment, source reconciliation, PT and TDS have not been confirmed.
+                </p>
+            </div>
+        </xpath>
+    </template>
+<template id="report_payslip_greythr_standard" inherit_id="l10n_in_hr_payroll.report_payslip_in_alt"><xpath expr="//span[@t-as='line']" position="attributes"><attribute name="t-foreach">o.line_ids.filtered(lambda line: line.appears_on_payslip and line.category_id.code not in ('FT_EMPLOYER', 'FT_CTC_INFO')) if o.structure_code == 'FT_GREYTHR' else o.line_ids.filtered(lambda line: line.appears_on_payslip)</attribute></xpath><xpath expr="//div[@id='to_pay']" position="after"><div t-if="o.structure_code == 'FT_GREYTHR'" class="mt-3" name="greythr_employer_costs">
+                <h6>Employer CTC Costs — Excluded from Take-home Pay</h6>
+                <table class="table table-sm">
+                    <tbody>
+                        <tr t-foreach="o.line_ids.filtered(lambda line: line.category_id.code in ('FT_EMPLOYER', 'FT_CTC_INFO'))" t-as="cost">
+                            <td><span t-field="cost.name"/></td>
+                            <td class="text-end"><span t-field="cost.total" t-options="{'widget': 'monetary', 'display_currency': o.currency_id}"/></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p t-if="not o.version_id.greythr_ctc_id.payroll_reviewed">
+                    Draft calculation for review. PF treatment, source reconciliation, PT and TDS have not been confirmed.
+                </p>
+            </div>
+        </xpath></template></odoo>
