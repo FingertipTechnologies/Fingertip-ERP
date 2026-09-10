@@ -7,7 +7,7 @@ The supplied spreadsheets contain one employee, not the full workforce.
 
 ## Use in staging
 
-1. Install/upgrade `ft_greythr_migration` version `19.0.1.2.0`.
+1. Install/upgrade `ft_greythr_migration` version `19.0.1.2.1`.
 2. With Employees and Payroll administrator access, select the correct India
    company (INR), then import the manager file first and the employee/CTC file
    second through Employees > Import records. Keep external IDs unchanged.
@@ -145,3 +145,10 @@ report layout; no employee data is embedded in the report template.
 For Fingertip companies without a configured logo, the report uses the logo
 extracted from the supplied reference PDF. Other companies use only their own
 configured logo. This changes report branding only, not company records.
+
+Version 19.0.1.2.1 fixes the salary-structure Template selector: the native
+name-based report filter excluded our custom report. The field now includes
+Fingertip Payslip explicitly while retaining the original localization filter.
+Deploy the complete addon, restart workers, and upgrade the app in the target
+database. Existing structures can then select Template = Fingertip Payslip
+without changing payroll calculations.

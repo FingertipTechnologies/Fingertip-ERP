@@ -165,3 +165,12 @@ class TestGreythrPayroll(TransactionCase):
         self.assertEqual(slip._ft_report_number(0.46), '0.46')
         self.assertEqual(slip._ft_report_number(15000), '15000')
         self.assertEqual(slip._ft_report_number(None), '')
+
+    def test_template_selector_includes_fingertip_and_standard_reports(self):
+        Structure = self.env['hr.payroll.structure']
+        domain = Structure.fields_get(['report_id'])['report_id']['domain']
+        reports = self.env['ir.actions.report'].search(domain)
+        self.assertIn(self.env.ref('ft_greythr_migration.action_report_fingertip_payslip'), reports)
+        self.assertIn(self.env.ref('l10n_in_hr_payroll.action_report_payslip_in'), reports)
+        self.assertIn(self.env.ref('hr_payroll.action_report_payslip'), reports)
+        self.assertTrue(all(r.model == 'hr.payslip' and r.report_type == 'qweb-pdf' for r in reports))
