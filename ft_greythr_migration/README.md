@@ -7,7 +7,7 @@ The supplied spreadsheets contain one employee, not the full workforce.
 
 ## Use in staging
 
-1. Install/upgrade `ft_greythr_migration` version `19.0.1.1.0`.
+1. Install/upgrade `ft_greythr_migration` version `19.0.1.2.0`.
 2. With Employees and Payroll administrator access, select the correct India
    company (INR), then import the manager file first and the employee/CTC file
    second through Employees > Import records. Keep external IDs unchanged.
@@ -113,3 +113,35 @@ Source spreadsheets and staging Excel files stay outside the addon source.
 by the manifest. No payment or accounting posting is made by the import.
 
 Odoo reference: https://www.odoo.com/documentation/19.0/applications/hr/payroll/payslips.html
+
+## Reference payslip layout (version 19.0.1.2.0)
+
+The **Fingertip Payslip** PDF matches the supplied greytHR layout: A4 portrait,
+company name/address/logo, two employee-information columns, Earnings with Master
+and Actual amounts, Deductions, totals, net in words, signature notice and print
+time. It is the default report on Fingertip: greytHR Monthly and is also available
+from a payslip's Print menu. The existing India detailed reports remain available
+for employer CTC analysis. Employer costs are excluded from the employee-facing
+reference layout, as in the supplied sample.
+
+This is a report-only change. Actual values come from computed payslip lines;
+Master values come from the employment version's mapped components and applied
+CTC. Nonzero reconciliation amounts remain visible and fractional currency
+amounts are preserved rather than silently rounding to the sample's integers.
+Zero-only components are hidden. A component with nonzero Master is shown even
+when Actual is zero (e.g. a fully unpaid month).
+
+Company branding, employee bank, department, designation and location use Odoo
+records; missing values are blank. The PDF is a layout reference, not an instruction
+to overwrite those records or import July pay/leave/tax values. Effective workdays
+are calendar days within the payslip/contract period minus unpaid worked-day
+quantities, excluding OUT entries. Days In Month uses the calendar month. This
+presentation does not alter Odoo's payroll proration or attendance records.
+
+The local preview uses the existing June draft; its values therefore differ from
+the shared July payslip. Install/upgrade this addon in staging to get the same
+report layout; no employee data is embedded in the report template.
+
+For Fingertip companies without a configured logo, the report uses the logo
+extracted from the supplied reference PDF. Other companies use only their own
+configured logo. This changes report branding only, not company records.

@@ -1,0 +1,136 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <record id="paperformat_fingertip_payslip" model="report.paperformat">
+        <field name="name">Fingertip Payslip A4</field>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">11</field>
+        <field name="margin_bottom">12</field>
+        <field name="margin_left">6</field>
+        <field name="margin_right">6</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">96</field>
+    </record>
+    <record id="action_report_fingertip_payslip" model="ir.actions.report">
+        <field name="name">Fingertip Payslip</field>
+        <field name="model">hr.payslip</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">ft_greythr_migration.report_fingertip_payslip</field>
+        <field name="report_file">ft_greythr_migration.report_fingertip_payslip</field>
+        <field name="paperformat_id" ref="paperformat_fingertip_payslip"/>
+        <field name="binding_model_id" ref="hr_payroll.model_hr_payslip"/>
+        <field name="binding_type">report</field>
+        <field name="group_ids" eval="[(4, ref('hr_payroll.group_hr_payroll_user'))]"/>
+        <field name="print_report_name">'%s_%s' % (object.employee_id.registration_number or object.employee_id.name, object.date_from.strftime('%b_%Y'))</field>
+    </record>
+    <template id="report_fingertip_payslip">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-set="v" t-value="o._ft_report_values()"/>
+                <t t-set="e" t-value="o.employee_id"/>
+                <t t-set="company" t-value="o.company_id"/>
+                <div class="article" t-att-data-oe-model="o._name" t-att-data-oe-id="o.id" t-att-data-oe-lang="o.env.lang">
+                    <div class="page ft-reference-payslip">
+                        <style>
+                            .ft-reference-payslip { font-family: 'Times New Roman', 'Liberation Serif', serif; font-size: 11pt; color: #000; }
+                            .ft-reference-payslip table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+                            .ft-reference-payslip td, .ft-reference-payslip th { padding: 2px 4px; vertical-align: top; font-weight: normal; }
+                            .ft-reference-payslip .ft-box { border: 1px solid #000; }
+                            .ft-reference-payslip .ft-company { height: 24mm; padding: 5px 4px; }
+                            .ft-reference-payslip .ft-company-name { font-family: Arial, sans-serif; font-size: 13pt; font-weight: bold; }
+                            .ft-reference-payslip .ft-address { font-size: 8.5pt; max-width: 132mm; line-height: 1.1; }
+                            .ft-reference-payslip .ft-logo { max-width: 32mm; max-height: 15mm; float: right; margin: 3mm 2mm 0 0; }
+                            .ft-reference-payslip .ft-title { text-align: center; font-size: 12pt; font-weight: bold; padding: 3mm 0 4mm; }
+                            .ft-reference-payslip .ft-details { border-top: 1px solid #000; border-bottom: 1px solid #000; }
+                            .ft-reference-payslip .ft-details td { padding: 0; }
+                            .ft-reference-payslip .ft-details table td { padding: 1px 4px; line-height: 1.25; }
+                            .ft-reference-payslip .ft-middle { border-left: 1px solid #000; }
+                            .ft-reference-payslip .ft-salary th { font-weight: bold; text-align: center; border-bottom: 1px solid #000; }
+                            .ft-reference-payslip .ft-salary td { height: 5.4mm; }
+                            .ft-reference-payslip .ft-number { text-align: right; white-space: nowrap; }
+                            .ft-reference-payslip .ft-total td { border-top: 1px solid #000; }
+                            .ft-reference-payslip .ft-net { border-top: 1px solid #000; padding: 5px 4px; }
+                            .ft-reference-payslip .ft-words { font-style: italic; margin-top: 6px; }
+                            .ft-reference-payslip .ft-signature { text-align: center; margin-top: 3px; }
+                        </style>
+                        <div class="ft-box">
+                            <div class="ft-company">
+                                <img t-if="v['logo']" class="ft-logo" t-att-src="image_data_uri(v['logo'])" alt="Company logo"/>
+                                <div class="ft-company-name" t-field="company.name"/>
+                                <div class="ft-address">
+                                    <span t-field="company.street"/><t t-if="company.street2">, <span t-field="company.street2"/></t>
+                                    <t t-if="company.city">, <span t-field="company.city"/></t><br/>
+                                    <span t-field="company.state_id.code"/> <span t-field="company.zip"/>
+                                </div>
+                            </div>
+                            <div class="ft-title">Payslip for the month of <span t-out="v['month']"/></div>
+                            <table class="ft-details">
+                                <tr>
+                                    <td style="width:50%">
+                                        <table>
+                                            <colgroup><col style="width:50%"/><col style="width:50%"/></colgroup>
+                                            <tr><td>Name:</td><td><span t-field="e.name"/></td></tr>
+                                            <tr><td>Gender:</td><td t-out="v['gender']"/></tr>
+                                            <tr><td>Joining Date:</td><td t-out="v['joining']"/></tr>
+                                            <tr><td>Designation:</td><td t-out="v['designation']"/></tr>
+                                            <tr><td>Department:</td><td t-out="v['department']"/></tr>
+                                            <tr><td>Location:</td><td t-out="v['location']"/></tr>
+                                            <tr><td>EMP EFFECTIVE WORKDAYS:</td><td t-out="o._ft_report_number(v['effective_days'])"/></tr>
+                                            <tr><td>DAYS IN MONTH:</td><td t-out="v['days_in_month']"/></tr>
+                                        </table>
+                                    </td>
+                                    <td class="ft-middle" style="width:50%">
+                                        <table>
+                                            <colgroup><col style="width:50%"/><col style="width:50%"/></colgroup>
+                                            <tr><td>Employee No:</td><td><span t-field="e.registration_number"/></td></tr>
+                                            <tr><td>Bank Name:</td><td t-out="v['bank_name']"/></tr>
+                                            <tr><td>Bank Account No:</td><td t-out="v['bank_account']"/></tr>
+                                            <tr><td>PF No:</td><td><span t-field="e.greythr_pf_number"/></td></tr>
+                                            <tr><td>PF UAN:</td><td><span t-field="e.l10n_in_uan"/></td></tr>
+                                            <tr><td>ESI Number:</td><td><span t-field="e.l10n_in_esic_number"/></td></tr>
+                                            <tr><td>PAN Number:</td><td><span t-field="e.l10n_in_pan"/></td></tr>
+                                            <tr><td>LOP:</td><td t-out="o._ft_report_number(v['lop'])"/></tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                            <table class="ft-salary">
+                                <colgroup><col style="width:31%"/><col style="width:9.5%"/><col style="width:9.5%"/><col style="width:38%"/><col style="width:12%"/></colgroup>
+                                <thead><tr><th>Earnings</th><th>Master</th><th>Actual</th><th class="ft-middle">Deductions</th><th>Actual</th></tr></thead>
+                                <tbody>
+                                    <tr t-foreach="range(v['row_count'])" t-as="i">
+                                        <t t-set="earning" t-value="v['earnings'][i] if i &lt; len(v['earnings']) else False"/>
+                                        <t t-set="deduction" t-value="v['deductions'][i] if i &lt; len(v['deductions']) else False"/>
+                                        <td><span t-if="earning" t-out="earning['name']"/></td>
+                                        <td class="ft-number"><span t-if="earning" t-out="o._ft_report_number(earning['master'])"/></td>
+                                        <td class="ft-number"><span t-if="earning" t-out="o._ft_report_number(earning['actual'])"/></td>
+                                        <td class="ft-middle"><span t-if="deduction" t-out="deduction['name']"/></td>
+                                        <td class="ft-number"><span t-if="deduction" t-out="o._ft_report_number(deduction['actual'])"/></td>
+                                    </tr>
+                                    <tr class="ft-total">
+                                        <td>Total Earnings:<span t-field="o.currency_id.name"/>.</td>
+                                        <td class="ft-number" t-out="o._ft_report_number(v['master_total'])"/>
+                                        <td class="ft-number" t-out="o._ft_report_number(v['gross'])"/>
+                                        <td class="ft-middle">Total Deductions:<span t-field="o.currency_id.name"/>.</td>
+                                        <td class="ft-number" t-out="o._ft_report_number(v['deduction_total'])"/>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="ft-net">
+                                Net Pay for the month ( Total Earnings - Total Deductions):
+                                <strong style="margin-left:4mm" t-out="o._ft_report_number(v['net'])"/>
+                                <div class="ft-words">(<span t-out="v['words']"/> Only)</div>
+                            </div>
+                        </div>
+                        <div class="ft-signature">This is a system generated payslip and does not require signature.</div>
+                    </div>
+                </div>
+                <div class="footer" style="font-family:'Times New Roman',serif;font-size:10pt;color:#000">Print Date:<span t-out="v['print_date']"/></div>
+            </t>
+        </t>
+    </template>
+    <record id="greythr_structure" model="hr.payroll.structure">
+        <field name="report_id" ref="action_report_fingertip_payslip"/>
+    </record>
+</odoo>

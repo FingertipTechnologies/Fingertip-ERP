@@ -130,3 +130,38 @@ class TestGreythrPayroll(TransactionCase):
             self.assertNotIn('Gratuity Provision', earnings.text_content())
             self.assertNotIn('Provident fund - Employer', earnings.text_content())
             self.assertIn('Leave Travel Allowance', earnings.text_content())
+
+    def test_reference_report_master_actual_and_deductions(self):
+        from lxml import html
+        slip = self._slip(.5)
+        data = slip._ft_report_values()
+        self.assertEqual(data['master_total'], 30000)
+        self.assertEqual(data['gross'], 15000)
+        self.assertEqual(data['deduction_total'], 900)
+        self.assertEqual(data['net'], 14100)
+        self.assertEqual(data['lop'], 10)
+        self.assertEqual(data['effective_days'], 20)
+        self.assertEqual(data['days_in_month'], 30)
+        amounts = {row['name']: row for row in data['earnings']}
+        self.assertEqual(amounts['LEAVE TRAVEL ALLOWANCE']['master'], 500)
+        self.assertEqual(amounts['LEAVE TRAVEL ALLOWANCE']['actual'], 250)
+        result, _ = self.env['ir.actions.report']._render_qweb_html(
+            'ft_greythr_migration.action_report_fingertip_payslip', slip.ids)
+        doc = html.fromstring(result)
+        text = doc.text_content()
+        for label in ('Payslip for the month of June 2026', 'Master', 'Actual',
+                'EMP EFFECTIVE WORKDAYS:', 'PF UAN:', 'LOP:', 'Total Deductions:', 'Print Date:'):
+            self.assertIn(label, text)
+        self.assertNotIn('Gratuity Provision', text)
+        self.assertNotIn('Provident fund - Employer', text)
+        self.assertEqual(slip.struct_id.report_id, self.env.ref(
+            'ft_greythr_migration.action_report_fingertip_payslip'))
+
+    def test_reference_report_preserves_cents_and_unpaid_master(self):
+        slip = self._slip(0)
+        data = slip._ft_report_values()
+        self.assertEqual(data['gross'], 0)
+        self.assertEqual(data['master_total'], 30000)
+        self.assertEqual(slip._ft_report_number(0.46), '0.46')
+        self.assertEqual(slip._ft_report_number(15000), '15000')
+        self.assertEqual(slip._ft_report_number(None), '')
