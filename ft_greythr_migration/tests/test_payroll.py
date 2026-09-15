@@ -1,3 +1,5 @@
+from lxml import etree
+
 from odoo import Command
 from odoo.exceptions import UserError
 from odoo.tests import TransactionCase, tagged
@@ -50,21 +52,31 @@ class TestGreythrPayroll(TransactionCase):
     def test_full_month_no_double_count(self):
         slip = self._slip()
         lines = {l.code: l.total for l in slip.line_ids}
+        # Earnings sum to 29999.5 against a source gross of 30000: the sub-rupee gap is not paid.
         expected = {'BASIC': 15000, 'HRA': 6000, 'SPL': 7499.5, 'LTA': 500,
-            'MEAL': 1000, 'GROSS_RECON': .5, 'GROSS': 30000, 'PF': -1800,
-            'PFE': 1800, 'GRATUITY': 721.15, 'NET': 28200, 'CTC_TOTAL': 32521.15}
+            'MEAL': 1000, 'GROSS_RECON': 0, 'GROSS': 29999.5, 'PF': -1800,
+            'PFE': 1800, 'GRATUITY': 721.15, 'NET': 28199.5, 'CTC_TOTAL': 32520.65}
         for code, amount in expected.items():
             self.assertAlmostEqual(lines[code], amount, places=2, msg=code)
         self.assertFalse(self.company.l10n_in_provident_fund)
-        self.assertAlmostEqual(self.employee.l10n_in_gross_salary, 30000, places=2)
+        self.assertAlmostEqual(self.employee.l10n_in_gross_salary, 29999.5, places=2)
         self.assertEqual(self.employee.l10n_in_leave_travel_allowance, 500)
         self.assertEqual(self.employee.l10n_in_gratuity, 721.15)
+
+    def test_source_gross_gap_paid_only_from_one_rupee(self):
+        self.assertEqual(self.ctc.gross_difference, 0)
+        self.assertAlmostEqual(self.employee.wage, 29999.5, places=2)
+        self.ctc.write({'monthly_gross': 30010})
+        self.ctc.action_apply_to_payroll()
+        lines = {l.code: l.total for l in self._slip().line_ids}
+        self.assertAlmostEqual(lines['GROSS_RECON'], 10.5, places=2)
+        self.assertAlmostEqual(lines['GROSS'], 30010, places=2)
 
     def test_unpaid_leave_prorates_allowances_and_employer_costs(self):
         slip = self._slip(.5)
         lines = {l.code: l.total for l in slip.line_ids}
-        for code, amount in {'GROSS': 15000, 'LTA': 250, 'MEAL': 500,
-                'PF': -900, 'PFE': 900, 'GRATUITY': 360.58, 'NET': 14100}.items():
+        for code, amount in {'GROSS': 14999.75, 'LTA': 250, 'MEAL': 500,
+                'PF': -900, 'PFE': 900, 'GRATUITY': 360.58, 'NET': 14099.75}.items():
             self.assertAlmostEqual(lines[code], amount, places=2, msg=code)
 
     def test_zero_paid_time(self):
@@ -135,10 +147,11 @@ class TestGreythrPayroll(TransactionCase):
         from lxml import html
         slip = self._slip(.5)
         data = slip._ft_report_values()
-        self.assertEqual(data['master_total'], 30000)
-        self.assertEqual(data['gross'], 15000)
+        self.assertAlmostEqual(data['master_total'], 29999.5, places=2)
+        self.assertAlmostEqual(data['gross'], 14999.75, places=2)
         self.assertEqual(data['deduction_total'], 900)
-        self.assertEqual(data['net'], 14100)
+        self.assertAlmostEqual(data['net'], 14099.75, places=2)
+        self.assertNotIn('GROSS RECONCILIATION', [row['name'] for row in data['earnings']])
         self.assertEqual(data['lop'], 10)
         self.assertEqual(data['effective_days'], 20)
         self.assertEqual(data['days_in_month'], 30)
@@ -161,7 +174,7 @@ class TestGreythrPayroll(TransactionCase):
         slip = self._slip(0)
         data = slip._ft_report_values()
         self.assertEqual(data['gross'], 0)
-        self.assertEqual(data['master_total'], 30000)
+        self.assertAlmostEqual(data['master_total'], 29999.5, places=2)
         self.assertEqual(slip._ft_report_number(0.46), '0.46')
         self.assertEqual(slip._ft_report_number(15000), '15000')
         self.assertEqual(slip._ft_report_number(None), '')
@@ -174,3 +187,16 @@ class TestGreythrPayroll(TransactionCase):
         self.assertIn(self.env.ref('l10n_in_hr_payroll.action_report_payslip_in'), reports)
         self.assertIn(self.env.ref('hr_payroll.action_report_payslip'), reports)
         self.assertTrue(all(r.model == 'hr.payslip' and r.report_type == 'qweb-pdf' for r in reports))
+
+    def test_meal_allowance_listed_with_salary_components(self):
+        for model, view in (('hr.employee', 'hr.view_employee_form'),
+                            ('hr.version', 'hr.hr_contract_template_form_view')):
+            with self.subTest(model=model):
+                arch = etree.fromstring(self.env[model].get_view(self.env.ref(view).id, 'form')['arch'])
+                meal = arch.xpath("//field[@name='l10n_in_meal_voucher_amount']")
+                self.assertEqual(len(meal), 1)
+                self.assertEqual(meal[0].get('string'), 'Meal Allowance')
+                label = meal[0].getparent().getprevious()
+                self.assertEqual((label.tag, label.get('for'), label.get('string')),
+                                 ('label', 'l10n_in_meal_voucher_amount', 'Meal Allowance'))
+                self.assertEqual(label.getprevious().xpath("field/@name"), ['l10n_in_fixed_allowance'])

@@ -79,4 +79,42 @@
       </xpath>
     </field>
   </record>
+
+  <!-- The meal amount is paid as an earning (MEAL rule), so list it with the salary
+       components instead of under Benefits. Same field, so computation is unchanged. -->
+  <record id="employee_form_in_meal_allowance" model="ir.ui.view">
+    <field name="name">hr.employee.form.in.meal.allowance</field>
+    <field name="model">hr.employee</field>
+    <field name="inherit_id" ref="l10n_in_hr_payroll.hr_employee_view_form_in_inherit"/>
+    <field name="arch" type="xml">
+      <xpath expr="//field[@name='l10n_in_fixed_allowance']/.." position="after">
+        <xpath expr="//label[@for='l10n_in_meal_voucher_amount']" position="move"/>
+        <xpath expr="//field[@name='l10n_in_meal_voucher_amount']/.." position="move"/>
+      </xpath>
+      <xpath expr="//label[@for='l10n_in_meal_voucher_amount']" position="attributes">
+        <attribute name="string">Meal Allowance</attribute>
+      </xpath>
+      <field name="l10n_in_meal_voucher_amount" position="attributes">
+        <attribute name="string">Meal Allowance</attribute>
+      </field>
+    </field>
+  </record>
+
+  <record id="contract_template_form_in_meal_allowance" model="ir.ui.view">
+    <field name="name">hr.contract.template.form.in.meal.allowance</field>
+    <field name="model">hr.version</field>
+    <field name="inherit_id" ref="l10n_in_hr_payroll.hr_contract_template_view_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//field[@name='l10n_in_fixed_allowance']/.." position="after">
+        <xpath expr="//label[@for='l10n_in_meal_voucher_amount']" position="move"/>
+        <xpath expr="//field[@name='l10n_in_meal_voucher_amount']/.." position="move"/>
+      </xpath>
+      <xpath expr="//label[@for='l10n_in_meal_voucher_amount']" position="attributes">
+        <attribute name="string">Meal Allowance</attribute>
+      </xpath>
+      <field name="l10n_in_meal_voucher_amount" position="attributes">
+        <attribute name="string">Meal Allowance</attribute>
+      </field>
+    </field>
+  </record>
 </odoo>

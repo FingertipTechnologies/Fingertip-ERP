@@ -7,7 +7,7 @@ The supplied spreadsheets contain one employee, not the full workforce.
 
 ## Use in staging
 
-1. Install/upgrade `ft_greythr_migration` version `19.0.1.2.1`.
+1. Install/upgrade `ft_greythr_migration` version `19.0.1.2.3`.
 2. With Employees and Payroll administrator access, select the correct India
    company (INR), then import the manager file first and the employee/CTC file
    second through Employees > Import records. Keep external IDs unchanged.
@@ -152,3 +152,18 @@ Fingertip Payslip explicitly while retaining the original localization filter.
 Deploy the complete addon, restart workers, and upgrade the app in the target
 database. Existing structures can then select Template = Fingertip Payslip
 without changing payroll calculations.
+
+Version 19.0.1.2.2 lists the native meal amount as **Meal Allowance** under Salary
+Components (after Fixed Allowance) on the employee Payroll tab and on contract
+templates, instead of "Meal Vouchers" under Benefits. It is the same field, so payslip
+computation is unchanged; the MEAL earning already prints on the Fingertip and India
+payslip PDFs. This is a view-only change: upgrade the app, no worker restart needed.
+
+Version 19.0.1.2.3 stops paying sub-rupee source gross gaps. greytHR's monthly gross
+often carries paise from annual CTC / 12 (for example 59,274.46 against mapped earnings
+of 59,274.00). A gap under ₹1 is treated as source rounding: the applied wage is the sum
+of mapped earnings, and no Gross Reconciliation amount is paid or printed. Gaps of ₹1
+or more are still paid and shown, so real mapping differences stay visible. The source
+Monthly Gross on the CTC record is kept unchanged. This is a Python change: restart
+workers, upgrade the app, then click Apply to Payroll on each applied CTC before
+computing payslips (until then Compute Sheet asks for the reapply).

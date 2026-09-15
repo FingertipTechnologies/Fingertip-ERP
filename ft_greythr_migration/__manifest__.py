@@ -1,5 +1,5 @@
 {'name': 'Fingertip greytHR Migration',
- 'version': '19.0.1.2.1',
+ 'version': '19.0.1.2.3',
  'author': 'Fingertip',
  'license': 'LGPL-3',
  'depends': ['l10n_in_hr_payroll'],

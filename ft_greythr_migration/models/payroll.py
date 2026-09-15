@@ -29,12 +29,18 @@ class GreythrCTC(models.Model):
     payroll_pf_mode = fields.Selection([
         ('pending', 'Pending Confirmation'), ('capped', 'Capped PF'), ('actual', 'Actual PF Base'),
         ('none', 'Not Applicable')], default='pending', required=True, string='PF Treatment')
-    gross_difference = fields.Monetary('Source Gross Reconciliation', compute='_compute_gross_difference')
+    gross_difference = fields.Monetary('Source Gross Reconciliation', compute='_compute_gross_difference',
+        help='Source gross less mapped earnings, paid as a reconciliation line. A gap under one rupee is rounding from annual CTC / 12 and is not paid.')
 
-    @api.depends('monthly_gross', *EARNINGS)
+    @api.depends('monthly_gross', 'currency_id', *EARNINGS)
     def _compute_gross_difference(self):
         for record in self:
-            record.gross_difference = record.monthly_gross - sum(record[n] for n in EARNINGS)
+            difference = record.monthly_gross - sum(record[n] for n in EARNINGS)
+            record.gross_difference = difference if record.currency_id.compare_amounts(abs(difference), 1) >= 0 else 0
+
+    def _payroll_gross(self):
+        self.ensure_one()
+        return sum(self[n] for n in EARNINGS) + self.gross_difference
 
     def _check_payroll_manager(self):
         if not self.env.su and not self.env.user.has_group('hr_payroll.group_hr_payroll_manager'):
@@ -70,7 +76,7 @@ class GreythrCTC(models.Model):
         vals = {
             'greythr_ctc_id': self.id,
             'structure_type_id': self.env.ref('ft_greythr_migration.greythr_structure_type').id,
-            'wage': self.monthly_gross,
+            'wage': self._payroll_gross(),
             'l10n_in_standard_allowance': 0,
             'l10n_in_performance_bonus': 0,
             'l10n_in_internet_subscription': 0,
@@ -152,7 +158,7 @@ class HrPayslip(models.Model):
         if self.version_id.wage_type != 'monthly' or self.version_id.schedule_pay != 'monthly':
             raise UserError(self.env._('The greytHR structure supports monthly fixed wages only.'))
         # Prevent stale standard fields being silently used after a source edit.
-        values = {'wage': ctc.monthly_gross, **{f: ctc[s] for s, f in NATIVE_COMPONENTS.items()}}
+        values = {'wage': ctc._payroll_gross(), **{f: ctc[s] for s, f in NATIVE_COMPONENTS.items()}}
         if any(not self.currency_id.is_zero(self.version_id[f] - amount) for f, amount in values.items()):
             raise UserError(self.env._('Salary fields differ from the applied CTC. Reapply the CTC before computing.'))
         return ctc
