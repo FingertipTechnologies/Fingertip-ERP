@@ -118,7 +118,7 @@ class ResCompany(models.Model):
                     'subject': _('Daily Outstanding Report - %(company)s - %(date)s',
                                  company=company.name, date=now.date()),
                     'body_html': localized_company._daily_outstanding_body(now.date()),
-                    'email_from': company.partner_id.email_formatted or self.env.user.email_formatted,
+                    'email_from': 'support@fingertipplus.com',
                     'email_to': recipient.email_formatted,
                     'auto_delete': False,
                 })
