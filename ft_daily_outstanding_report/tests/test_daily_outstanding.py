@@ -46,6 +46,15 @@ class TestDailyOutstanding(TransactionCase):
             company._cron_daily_outstanding_report()
         self.assertEqual(Mail.search_count(mail_domain), before + 1)
         self.assertEqual(Mail.search(mail_domain, order='id desc', limit=1).state, 'outgoing')
+        queued = Mail.search(mail_domain, order='id desc', limit=1)
+        self.assertEqual(queued.model, 'res.company')
+        self.assertEqual(queued.res_id, company.id)
+        # Reproduce the exact post-SMTP delegated write, without transmitting mail.
+        queued.with_user(self.env.ref('base.user_admin')).sudo(False).write({
+            'state': 'sent', 'message_id': '<outstanding-regression@example.com>',
+            'failure_type': False, 'failure_reason': False,
+        })
+        self.assertEqual(queued.state, 'sent')
         self.assertEqual(Mail.search_count([('email_to', '=', second.email_formatted)]), 1)
         self.assertFalse(Mail.search_count([('email_to', '=', duplicate.email_formatted)]))
         company.daily_outstanding_enabled = False

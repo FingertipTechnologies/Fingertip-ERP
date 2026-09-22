@@ -115,6 +115,10 @@ class ResCompany(models.Model):
                 addresses.add(address)
                 localized_company = company.with_company(company).with_context(lang=recipient.lang or 'en_US')
                 self.env['mail.mail'].sudo().create({
+                    # Give message writes the company's normal access rules.
+                    # Otherwise a non-author cannot persist message_id after SMTP delivery.
+                    'model': 'res.company',
+                    'res_id': company.id,
                     'subject': _('Daily Outstanding Report - %(company)s - %(date)s',
                                  company=company.name, date=now.date()),
                     'body_html': localized_company._daily_outstanding_body(now.date()),

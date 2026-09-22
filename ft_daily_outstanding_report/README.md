@@ -43,3 +43,14 @@ passed with 0 failures and 0 errors; test changes were rolled back and no email
 was transmitted.
 
 Settings save regression fixed in 19.0.1.1.1: enable flag and recipients are saved together. Both settings-save and scheduling tests pass. The local backup also required a unique ID index on res_config_settings for the settings recipient relation.
+
+Version 19.0.1.1.2 links new report messages to their company so an authorized
+administrator can save the delegated Message-ID / Sent status after SMTP delivery.
+The regression test performs that write as the normal administrator without sudo
+and without transmitting an email. Existing unlinked emails are not modified:
+verify delivery before any retry, since a status-write failure can occur after
+SMTP has accepted the email. Deploy the updated module and restart/upgrade it in
+the affected environment for newly generated emails to use the fix.
+The local backup's missing `mail_message` primary key was also restored (validated
+by PostgreSQL), because Odoo's message access SQL relies on that primary key for
+its GROUP BY query. This repair did not change message contents or delivery status.
