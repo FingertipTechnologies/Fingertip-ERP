@@ -1,0 +1,23 @@
+<odoo>
+    <record id="res_config_settings_view_form" model="ir.ui.view">
+        <field name="name">res.config.settings.daily.outstanding</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="sale.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//app[@name='sale_management']" position="inside">
+                <block title="Outstanding Reports" name="daily_outstanding_reports">
+                    <setting id="daily_outstanding_report" company_dependent="1"
+                             help="Email separate customer pro forma and invoice outstanding tables daily at 8:00 AM (Asia/Kolkata).">
+                        <field name="daily_outstanding_enabled"/>
+                        <div class="content-group" invisible="not daily_outstanding_enabled">
+                            <label for="daily_outstanding_partner_id"/>
+                            <field name="daily_outstanding_partner_id"
+                                   required="daily_outstanding_enabled"
+                                   domain="[('email', '!=', False)]"/>
+                        </div>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>

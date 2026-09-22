@@ -1,0 +1,13 @@
+<odoo noupdate="1">
+    <record id="ir_cron_daily_outstanding_report" model="ir.cron">
+        <field name="name">Daily Outstanding Report: 8 AM India</field>
+        <field name="model_id" ref="base.model_res_company"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_daily_outstanding_report()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now().replace(hour=2, minute=30, second=0, microsecond=0) + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"/>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>
