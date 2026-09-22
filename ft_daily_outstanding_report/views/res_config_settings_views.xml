@@ -10,8 +10,8 @@
                              help="Email separate customer pro forma and invoice outstanding tables daily at 8:00 AM (Asia/Kolkata).">
                         <field name="daily_outstanding_enabled"/>
                         <div class="content-group" invisible="not daily_outstanding_enabled">
-                            <label for="daily_outstanding_partner_id"/>
-                            <field name="daily_outstanding_partner_id"
+                            <label for="daily_outstanding_partner_ids"/>
+                            <field name="daily_outstanding_partner_ids" widget="many2many_tags"
                                    required="daily_outstanding_enabled"
                                    domain="[('email', '!=', False)]"/>
                         </div>

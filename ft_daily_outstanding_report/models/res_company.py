@@ -15,17 +15,25 @@ class ResCompany(models.Model):
     _inherit = 'res.company'
 
     daily_outstanding_enabled = fields.Boolean(string='Daily Outstanding Report')
-    daily_outstanding_partner_id = fields.Many2one(
-        'res.partner', string='Report Recipient', ondelete='restrict',
-        help='Send the daily outstanding report to this contact’s email address.')
+    daily_outstanding_partner_ids = fields.Many2many(
+        'res.partner', 'ft_outstanding_company_partner_rel', 'company_id', 'partner_id',
+        string='Report Recipients',
+        help='Send the daily outstanding report to these contacts’ email addresses.')
     daily_outstanding_last_date = fields.Date(copy=False, readonly=True)
 
-    @api.constrains('daily_outstanding_enabled', 'daily_outstanding_partner_id')
+    @api.constrains('daily_outstanding_enabled', 'daily_outstanding_partner_ids')
     def _check_daily_outstanding_recipient(self):
         for company in self:
-            if company.daily_outstanding_enabled and not email_normalize(
-                    company.daily_outstanding_partner_id.email or ''):
-                raise ValidationError(_('Select a report recipient with a valid email address.'))
+            if not company.daily_outstanding_enabled:
+                continue
+            if not company.daily_outstanding_partner_ids:
+                raise ValidationError(_('Select at least one report recipient.'))
+            invalid = company.daily_outstanding_partner_ids.filtered(
+                lambda partner: not email_normalize(partner.email or ''))
+            if invalid:
+                raise ValidationError(_(
+                    'Enter one valid address in the Email field of these contacts: %(contacts)s',
+                    contacts=', '.join(invalid.mapped('display_name'))))
 
     def _outstanding_rows(self, model, domain, balance_field):
         self.ensure_one()
@@ -95,17 +103,23 @@ class ResCompany(models.Model):
             company.invalidate_recordset(['daily_outstanding_last_date'])
             if company.daily_outstanding_last_date == now.date():
                 continue
-            recipient = company.daily_outstanding_partner_id
-            if not email_normalize(recipient.email or ''):
-                _logger.warning('Daily outstanding report skipped: company %s has no valid recipient', company.id)
+            recipients = company.daily_outstanding_partner_ids
+            if not recipients or any(not email_normalize(p.email or '') for p in recipients):
+                _logger.warning('Daily outstanding report skipped: company %s has missing or invalid recipients', company.id)
                 continue
-            company = company.with_company(company).with_context(lang=recipient.lang or 'en_US')
-            self.env['mail.mail'].sudo().create({
-                'subject': _('Daily Outstanding Report - %(company)s - %(date)s',
-                             company=company.name, date=now.date()),
-                'body_html': company._daily_outstanding_body(now.date()),
-                'email_from': company.partner_id.email_formatted or self.env.user.email_formatted,
-                'email_to': recipient.email_formatted,
-                'auto_delete': False,
-            })
+            addresses = set()
+            for recipient in recipients.sorted('id'):
+                address = email_normalize(recipient.email)
+                if address in addresses:
+                    continue
+                addresses.add(address)
+                localized_company = company.with_company(company).with_context(lang=recipient.lang or 'en_US')
+                self.env['mail.mail'].sudo().create({
+                    'subject': _('Daily Outstanding Report - %(company)s - %(date)s',
+                                 company=company.name, date=now.date()),
+                    'body_html': localized_company._daily_outstanding_body(now.date()),
+                    'email_from': company.partner_id.email_formatted or self.env.user.email_formatted,
+                    'email_to': recipient.email_formatted,
+                    'auto_delete': False,
+                })
             company.daily_outstanding_last_date = now.date()

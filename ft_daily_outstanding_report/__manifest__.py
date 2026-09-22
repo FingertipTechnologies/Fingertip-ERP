@@ -1,6 +1,6 @@
 {
     'name': 'Daily Outstanding Report',
-    'version': '19.0.1.0.0',
+    'version': '19.0.1.1.1',
     'category': 'Sales',
     'summary': 'Daily customer pro forma and invoice outstanding email at 8 AM IST',
     'author': 'Fingertipplus Technologies',

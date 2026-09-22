@@ -1,10 +1,10 @@
 # Daily Outstanding Report
 
 Sales → Configuration → Settings → Outstanding Reports. Enable Daily Outstanding
-Report, select a contact with a valid email, and save. Settings belong to the
+Report, select contacts with valid email addresses, and save. Settings belong to the
 selected company; disabled by default.
 
-The scheduler queues one HTML email per enabled company daily at 08:00 Asia/Kolkata
+The scheduler queues one HTML email per distinct recipient address for each enabled company daily at 08:00 Asia/Kolkata
 (02:30 UTC). Odoo's email queue and outgoing mail server deliver it; delivery can
 be later if the server or mail queue is stopped. Duplicate runs on the same India
 calendar date do not queue another message. Failed outgoing emails remain in the
@@ -41,3 +41,5 @@ PostgreSQL validated uniqueness when creating these indexes. No business records
 were removed by these repairs. Module installation and its Odoo transaction test
 passed with 0 failures and 0 errors; test changes were rolled back and no email
 was transmitted.
+
+Settings save regression fixed in 19.0.1.1.1: enable flag and recipients are saved together. Both settings-save and scheduling tests pass. The local backup also required a unique ID index on res_config_settings for the settings recipient relation.

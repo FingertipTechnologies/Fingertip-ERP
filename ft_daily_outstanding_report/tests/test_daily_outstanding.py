@@ -12,10 +12,12 @@ class TestDailyOutstanding(TransactionCase):
         self.env['res.company'].search([]).daily_outstanding_enabled = False
         partner = self.env['res.partner'].create({
             'name': 'Report <Customer>', 'email': 'report@example.com'})
+        second = self.env['res.partner'].create({'name': 'Second', 'email': 'second@example.com'})
+        duplicate = self.env['res.partner'].create({'name': 'Duplicate', 'email': partner.email})
         with self.assertRaises(ValidationError), self.cr.savepoint():
-            company.write({'daily_outstanding_partner_id': False,
+            company.write({'daily_outstanding_partner_ids': [(5, 0, 0)],
                            'daily_outstanding_enabled': True})
-        company.write({'daily_outstanding_partner_id': partner.id,
+        company.write({'daily_outstanding_partner_ids': [(6, 0, (partner | second | duplicate).ids)],
                        'daily_outstanding_enabled': True,
                        'daily_outstanding_last_date': False})
         product = self.env['product.product'].create({'name': 'Report Service', 'type': 'service'})
@@ -44,7 +46,24 @@ class TestDailyOutstanding(TransactionCase):
             company._cron_daily_outstanding_report()
         self.assertEqual(Mail.search_count(mail_domain), before + 1)
         self.assertEqual(Mail.search(mail_domain, order='id desc', limit=1).state, 'outgoing')
+        self.assertEqual(Mail.search_count([('email_to', '=', second.email_formatted)]), 1)
+        self.assertFalse(Mail.search_count([('email_to', '=', duplicate.email_formatted)]))
         company.daily_outstanding_enabled = False
         with patch('odoo.fields.Datetime.now', return_value=datetime(2026, 9, 24, 2, 30)):
             company._cron_daily_outstanding_report()
         self.assertEqual(Mail.search_count(mail_domain), before + 1)
+
+    def test_enable_through_settings(self):
+        company = self.env.company
+        company.write({'daily_outstanding_enabled': False,
+                       'daily_outstanding_partner_ids': [(5, 0, 0)]})
+        partner = self.env['res.partner'].create({
+            'name': 'Valid Recipient', 'email': 'valid@example.com'})
+        settings = self.env['res.config.settings'].create({
+            'company_id': company.id,
+            'daily_outstanding_enabled': True,
+            'daily_outstanding_partner_ids': [(6, 0, partner.ids)],
+        })
+        settings.set_values()
+        self.assertTrue(company.daily_outstanding_enabled)
+        self.assertEqual(company.daily_outstanding_partner_ids, partner)
