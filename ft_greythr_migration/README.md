@@ -7,7 +7,7 @@ The supplied spreadsheets contain one employee, not the full workforce.
 
 ## Use in staging
 
-1. Install/upgrade `ft_greythr_migration` version `19.0.1.2.3`.
+1. Install/upgrade `ft_greythr_migration` version `19.0.1.3.0`.
 2. With Employees and Payroll administrator access, select the correct India
    company (INR), then import the manager file first and the employee/CTC file
    second through Employees > Import records. Keep external IDs unchanged.
@@ -69,8 +69,10 @@ insurance, employee ESIC and LWF retain the native configured rules. Employee
 ESIC additionally checks the employee's source eligibility. Company ESIC/other
 settings and the appropriate employee rates/slabs must be configured separately.
 The source employer ESIC amount is not a substitute for statutory recalculation.
-Annual variable pay and excess PF are rejected by Apply to Payroll until an
-explicit payout policy is implemented. Hourly/nonmonthly pay is unsupported.
+Excess PF is rejected by Apply to Payroll until an explicit payout policy is
+implemented. Annual variable pay is accepted from 19.0.1.3.0 and is carried to the
+employment version as a target only; see Quarterly variable pay below. Hourly and
+nonmonthly pay are unsupported.
 This is a pilot mapping, not certification of all Indian statutory reporting.
 
 A source change clears Payroll Setup Reviewed. Reapply the CTC before computing
@@ -167,3 +169,61 @@ or more are still paid and shown, so real mapping differences stay visible. The 
 Monthly Gross on the CTC record is kept unchanged. This is a Python change: restart
 workers, upgrade the app, then click Apply to Payroll on each applied CTC before
 computing payslips (until then Compute Sheet asks for the reapply).
+
+## Quarterly variable pay (version 19.0.1.3.0)
+
+Performance-based variable pay, paid once a quarter rather than accrued monthly.
+An employee on ₹60,000 annual variable pay has a ₹15,000 quarterly target; at 80%
+performance the approved payout is ₹12,000 and nothing reaches a payslip in the
+other two months of the quarter.
+
+**Where the target lives.** Odoo 19 has no `hr.contract`: `hr.employee` delegates
+to `hr.version` through `_inherits`, so the version *is* the contract. **Annual
+Variable Pay** is stored there and shown on the employee's Payroll tab, together
+with the quarterly target (annual / 4, computed) and the record count. Apply to
+Payroll copies the source `annual_variable_pay` onto the version, so the target
+arrives with the rest of the CTC.
+
+**The quarterly record.** `hr.variable.pay`, one per employee per financial year
+per quarter, enforced by a unique constraint. Quarters follow the Indian financial
+year, so Q1 is April-June and Q4 is January-March of the next calendar year. The
+quarterly target defaults from the contract; the payable amount is
+`target x performance % / 100`, and HR can pay a different figure by ticking
+**Override Amount**. The override is a separate stored field rather than an editable
+computed one, so it is not silently discarded the next time the target or the
+percentage changes.
+
+**Workflow.** Draft → Submitted → Approved → Paid, with chatter tracking. Only
+`hr_payroll.group_hr_payroll_manager` may approve. Approving freezes the amount and
+the quarter; a payroll manager can still correct a paid record, because somebody has
+to be able to fix a real payroll error.
+
+**Reaching the payslip.** Approval alone pays nothing. The payslip whose period
+contains the record's **payout date** (the quarter end by default, editable — a
+quarter closing 30 June is usually paid with July payroll) picks the amount up as
+the `VAR_PAY` Other Input. The input is refreshed both when the payslip's period or
+employee changes and on Compute Sheet, so approving after creating the payslip still
+works. Validating the payslip claims the record; marking it paid sets the record to
+Paid; cancelling the payslip releases the quarter again. A record already claimed by
+one payslip is never offered to another, which is what prevents a double payment.
+
+**Why VAR_PAY is sequenced 98.** `GROSS_RECON` at sequence 99 plugs `BASIC + ALW` up
+to `paid_amount`, so any allowance it cannot see is silently cancelled and net pay
+does not move. VAR_PAY therefore runs *before* it, and `GROSS_RECON` adds the input
+back before reconciling, leaving it to plug the fixed gross only. `CTC_DIFF` excludes it for the
+same reason: that line reconciles against the *fixed* monthly CTC, which variable pay
+sits outside by design, so leaving it in would report a CTC shortfall every payout
+quarter. `CTC_TOTAL` does include it and rises accordingly — it is the actual employer
+cost for the month, and in a payout month that cost really is higher.
+
+**Consequence to confirm before going live:** variable pay is part of `GROSS`, so in a
+payout month it raises the gross that the **PT slab** and the **ESIC eligibility
+threshold** are tested against. That is normally correct for Indian statutory gross,
+but it can move an employee across the ESIC threshold in payout months only. Confirm
+this against company policy before the first quarterly run.
+
+Menus: Payroll > Payslips > Variable Pay, and Payroll > Reporting > Variable Pay
+(pivot and graph, grouped by employee and quarter). The employee form carries a
+**Variable Pay** smart button. List, form, search, pivot and graph views are provided,
+with filters for employee, department, company, financial year, quarter, each state,
+and an "Approved, Not Paid" queue.

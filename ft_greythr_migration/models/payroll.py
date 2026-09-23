@@ -53,8 +53,10 @@ class GreythrCTC(models.Model):
             raise UserError(self.env._('This salary structure is for India companies using INR.'))
         if self.monthly_gross <= 0 or self.full_basic <= 0:
             raise UserError(self.env._('Provide positive monthly gross and basic salary.'))
-        if self.annual_variable_pay or self.epf_excess_contribution:
-            raise UserError(self.env._('Variable pay and excess PF need an explicit payout policy before applying this CTC.'))
+        if self.epf_excess_contribution:
+            raise UserError(self.env._('Excess PF needs an explicit payout policy before applying this CTC.'))
+        if self.annual_variable_pay < 0:
+            raise UserError(self.env._('Annual variable pay cannot be negative.'))
         if any(self[n] < 0 for n in EARNINGS):
             raise UserError(self.env._('Source earnings must not be negative.'))
         if self.payroll_pf_mode in ('capped', 'actual') and not self.eligible_for_pf:
@@ -77,6 +79,9 @@ class GreythrCTC(models.Model):
             'greythr_ctc_id': self.id,
             'structure_type_id': self.env.ref('ft_greythr_migration.greythr_structure_type').id,
             'wage': self._payroll_gross(),
+            # Target only. It is never paid monthly: payout happens through
+            # hr.variable.pay, one approved amount per quarter.
+            'ft_annual_variable_pay': self.annual_variable_pay,
             'l10n_in_standard_allowance': 0,
             'l10n_in_performance_bonus': 0,
             'l10n_in_internet_subscription': 0,

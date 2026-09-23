@@ -5,6 +5,24 @@
     <field name="model">hr.employee</field>
     <field name="inherit_id" ref="hr.view_employee_form"/>
     <field name="arch" type="xml">
+      <!-- Smart button, beside the payslip one hr_payroll adds. -->
+      <button name="action_open_versions" position="before">
+        <button class="oe_stat_button" name="action_open_variable_pay"
+                type="object" icon="fa-line-chart"
+                groups="hr_payroll.group_hr_payroll_user">
+          <field name="ft_variable_pay_count" string="Variable Pay" widget="statinfo"/>
+        </button>
+      </button>
+      <!-- Targets live on hr.version (Odoo 19's contract) and are shown here
+           through the _inherits delegation, so editing them writes the active
+           version rather than the employee. -->
+      <xpath expr="//page[@name='payroll_information']" position="inside">
+        <group string="Variable Pay" groups="hr_payroll.group_hr_payroll_user">
+          <field name="ft_annual_variable_pay"/>
+          <field name="ft_quarterly_variable_pay"/>
+          <field name="ft_variable_pay_count"/>
+        </group>
+      </xpath>
       <xpath expr="//notebook" position="inside">
         <page string="greytHR Migration" groups="hr.group_hr_user">
           <group>

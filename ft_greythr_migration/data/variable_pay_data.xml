@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <record id="sequence_variable_pay" model="ir.sequence">
+        <field name="name">Quarterly Variable Pay</field>
+        <field name="code">hr.variable.pay</field>
+        <field name="prefix">VP/%(year)s/</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <!-- Other Input carrying the approved quarterly amount onto the payslip.
+         Restricted to the greytHR structure: the reconciliation rule below is
+         what keeps the amount from being plugged away again, and no other
+         structure has it. available_in_attachments stays False so the standard
+         salary-adjustment compute never claims or deletes these lines. -->
+    <record id="input_type_variable_pay" model="hr.payslip.input.type">
+        <field name="name">Quarterly Variable Pay</field>
+        <field name="code">VAR_PAY</field>
+        <field name="available_in_attachments" eval="False"/>
+        <field name="struct_ids" eval="[Command.link(ref('greythr_structure'))]"/>
+        <field name="country_id" ref="base.in"/>
+    </record>
+
+    <record id="greythr_structure" model="hr.payroll.structure">
+        <field name="input_line_type_ids" eval="[Command.link(ref('input_type_variable_pay'))]"/>
+    </record>
+
+    <!-- Sequenced 98, immediately BEFORE the gross reconciliation at 99. That
+         ordering is load-bearing: GROSS_RECON plugs BASIC + ALW up to
+         paid_amount, so an ALW earning it cannot see is silently cancelled out
+         and net pay never moves. Running first means this amount is inside
+         categories['ALW'] when GROSS_RECON subtracts it back out again. -->
+    <record id="greythr_rule_variable_pay" model="hr.salary.rule">
+        <field name="code">VAR_PAY</field>
+        <field name="name">Quarterly Variable Pay</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="sequence">98</field>
+        <field name="struct_id" ref="greythr_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = bool(payslip._ft_variable_pay_input_amount())</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._ft_variable_pay_input_amount()</field>
+    </record>
+</odoo>

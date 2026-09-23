@@ -406,7 +406,12 @@ result = categories['BASIC'] + categories['ALW'] + categories['DED']
         <field name="struct_id" ref="greythr_structure"/>
         <field name="condition_select">none</field>
         <field name="amount_select">code</field>
-        <field name="amount_python_compute">result = payslip.currency_id.round(payslip.paid_amount - categories['BASIC'] - categories['ALW'])</field>
+        <!-- Variable pay is added back before reconciling: this rule exists to
+             plug the FIXED gross up to paid_amount, and VAR_PAY (sequence 98)
+             is already inside categories['ALW'] by the time it runs. Without
+             the add-back it would subtract the variable pay straight out again
+             and net salary would not move at all. -->
+        <field name="amount_python_compute">result = payslip.currency_id.round(payslip.paid_amount - categories['BASIC'] - categories['ALW'] + payslip._ft_variable_pay_input_amount())</field>
     </record>
     <record id="greythr_rule_ctc_total" model="hr.salary.rule">
         <field name="name">Calculated Employer CTC</field>
@@ -426,6 +431,9 @@ result = categories['BASIC'] + categories['ALW'] + categories['DED']
         <field name="struct_id" ref="greythr_structure"/>
         <field name="condition_select">none</field>
         <field name="amount_select">code</field>
-        <field name="amount_python_compute">result = payslip.currency_id.round(payslip._greythr_ctc().monthly_ctc * payslip._greythr_factor() - categories['GROSS'] - categories['FT_EMPLOYER'])</field>
+        <!-- Variable pay is outside monthly CTC by design, so it is removed
+             from gross before this reconciliation; leaving it in would report a
+             CTC shortfall in every quarter a payout lands. -->
+        <field name="amount_python_compute">result = payslip.currency_id.round(payslip._greythr_ctc().monthly_ctc * payslip._greythr_factor() - (categories['GROSS'] - payslip._ft_variable_pay_input_amount()) - categories['FT_EMPLOYER'])</field>
     </record>
 </odoo>
