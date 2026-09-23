@@ -9,20 +9,46 @@
     </record>
 
     <!-- Other Input carrying the approved quarterly amount onto the payslip.
-         Restricted to the greytHR structure: the reconciliation rule below is
-         what keeps the amount from being plugged away again, and no other
-         structure has it. available_in_attachments stays False so the standard
-         salary-adjustment compute never claims or deletes these lines. -->
+         Offered on both India structures. available_in_attachments stays False
+         so the standard salary-adjustment compute never claims or deletes these
+         lines. -->
     <record id="input_type_variable_pay" model="hr.payslip.input.type">
         <field name="name">Quarterly Variable Pay</field>
         <field name="code">VAR_PAY</field>
         <field name="available_in_attachments" eval="False"/>
-        <field name="struct_ids" eval="[Command.link(ref('greythr_structure'))]"/>
+        <field name="struct_ids" eval="[
+            Command.link(ref('greythr_structure')),
+            Command.link(ref('l10n_in_hr_payroll.hr_payroll_structure_in_employee_salary'))]"/>
         <field name="country_id" ref="base.in"/>
     </record>
 
     <record id="greythr_structure" model="hr.payroll.structure">
         <field name="input_line_type_ids" eval="[Command.link(ref('input_type_variable_pay'))]"/>
+    </record>
+
+    <record id="l10n_in_hr_payroll.hr_payroll_structure_in_employee_salary" model="hr.payroll.structure">
+        <field name="input_line_type_ids" eval="[Command.link(ref('input_type_variable_pay'))]"/>
+    </record>
+
+    <!-- Same payout on the stock India structure, for employees whose salary is
+         maintained natively rather than imported from greytHR. No greytHR CTC is
+         involved, so nothing has to be re-entered for them.
+
+         Sequence 40 sits after the last stock allowance (CAR, 38) and well before
+         GROSS (100). This structure has NO reconciliation plug - it is plainly
+         GROSS = BASIC + ALW and NET = BASIC + ALW + DED - so an ALW rule flows
+         straight into both, and none of the sequence-98 care the greytHR
+         structure needs applies here. -->
+    <record id="regular_rule_variable_pay" model="hr.salary.rule">
+        <field name="code">VAR_PAY</field>
+        <field name="name">Quarterly Variable Pay</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="sequence">40</field>
+        <field name="struct_id" ref="l10n_in_hr_payroll.hr_payroll_structure_in_employee_salary"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = bool(payslip._ft_variable_pay_input_amount())</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._ft_variable_pay_input_amount()</field>
     </record>
 
     <!-- Sequenced 98, immediately BEFORE the gross reconciliation at 99. That

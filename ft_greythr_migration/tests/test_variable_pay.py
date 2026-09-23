@@ -218,3 +218,72 @@ class TestVariablePay(TransactionCase):
         slip.action_payslip_done()
         with self.assertRaises(UserError):
             record.unlink()
+
+
+@tagged('post_install', '-at_install')
+class TestVariablePayRegularStructure(TransactionCase):
+    """Variable pay on stock India: Regular Pay, with no greytHR CTC involved.
+
+    This is the path for employees whose salary is maintained natively in Odoo
+    rather than imported from greytHR: nothing is re-entered on a CTC record,
+    and no CTC is applied to the version at all.
+    """
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.company = cls.env['res.company'].create({
+            'name': 'Regular Pay VP Test', 'country_id': cls.env.ref('base.in').id,
+            'currency_id': cls.env.ref('base.INR').id,
+        })
+        cls.env = cls.env(context=dict(cls.env.context, allowed_company_ids=[cls.company.id],
+            tracking_disable=True, mail_create_nosubscribe=True, mail_create_nolog=True))
+        cls.structure = cls.env.ref(
+            'l10n_in_hr_payroll.hr_payroll_structure_in_employee_salary')
+        cls.employee = cls.env['hr.employee'].create({
+            'name': 'Native Salary Employee', 'company_id': cls.company.id,
+            'date_version': '2026-04-01', 'contract_date_start': '2026-04-01',
+            'wage': 17226,
+            'structure_type_id': cls.structure.type_id.id,
+        })
+        # The only thing HR sets for variable pay: the annual target.
+        cls.employee.version_id.ft_annual_variable_pay = 60000
+
+    def _slip(self, date_from, date_to):
+        att = self.env.ref('hr_work_entry.work_entry_type_attendance')
+        slip = self.env['hr.payslip'].create({
+            'name': 'Regular VP', 'employee_id': self.employee.id,
+            'date_from': date_from, 'date_to': date_to, 'struct_id': self.structure.id,
+            'worked_days_line_ids': [Command.create({
+                'work_entry_type_id': att.id,
+                'number_of_days': 20, 'number_of_hours': 160})],
+        })
+        slip.compute_sheet()
+        return slip
+
+    def test_no_greythr_ctc_is_required(self):
+        self.assertFalse(self.employee.version_id.greythr_ctc_id)
+        self.assertEqual(self.employee.ft_quarterly_variable_pay, 15000)
+
+    def test_payout_reaches_gross_and_net_without_a_ctc(self):
+        baseline = {line.code: line.total for line in self._slip('2026-06-01', '2026-06-30').line_ids}
+        record = self.env['hr.variable.pay'].create({
+            'employee_id': self.employee.id, 'company_id': self.company.id,
+            'financial_year': 2026, 'quarter': 'q1', 'performance_percentage': 80,
+        })
+        record.action_submit()
+        record.action_approve()
+        self.assertEqual(record.amount_payable, 12000)
+        lines = {line.code: line.total for line in self._slip('2026-06-01', '2026-06-30').line_ids}
+        self.assertAlmostEqual(lines['VAR_PAY'], 12000, places=2)
+        self.assertAlmostEqual(lines['GROSS'], baseline['GROSS'] + 12000, places=2)
+        self.assertAlmostEqual(lines['NET'], baseline['NET'] + 12000, places=2)
+
+    def test_nothing_in_a_non_payout_month(self):
+        record = self.env['hr.variable.pay'].create({
+            'employee_id': self.employee.id, 'company_id': self.company.id,
+            'financial_year': 2026, 'quarter': 'q1', 'performance_percentage': 80,
+        })
+        record.action_submit()
+        record.action_approve()
+        lines = {line.code: line.total for line in self._slip('2026-05-01', '2026-05-31').line_ids}
+        self.assertNotIn('VAR_PAY', lines)

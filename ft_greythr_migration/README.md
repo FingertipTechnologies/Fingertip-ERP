@@ -222,6 +222,23 @@ threshold** are tested against. That is normally correct for Indian statutory gr
 but it can move an employee across the ESIC threshold in payout months only. Confirm
 this against company policy before the first quarterly run.
 
+**Both India structures are supported, and greytHR is not a prerequisite.** An
+employee whose salary is maintained natively in Odoo uses **India: Regular Pay** and
+needs no greytHR CTC record at all — set Annual Variable Pay on the contract, approve a
+quarter, done. Nothing is re-entered anywhere. That structure has no reconciliation plug
+(`GROSS = BASIC + ALW`, `NET = BASIC + ALW + DED`), so the rule sits at sequence 40,
+after the last stock allowance and before GROSS, and flows straight through. The
+sequence-98 arrangement described above applies only to the greytHR structure.
+
+Do not switch an employee to Fingertip: greytHR Monthly just to get variable pay: that
+structure reads every component from an applied greytHR CTC and will refuse to compute
+without one ("Apply a dated greytHR CTC record to this employment version first"). It is
+for migrated employees, whose figures must trace back to the greytHR source.
+
+Caveat: `l10n_in_hr_payroll`'s own data file resets the stock structure's `rule_ids`, so
+after upgrading that module also upgrade `ft_greythr_migration` to re-attach the VAR_PAY
+rule to India: Regular Pay.
+
 Menus: Payroll > Payslips > Variable Pay, and Payroll > Reporting > Variable Pay
 (pivot and graph, grouped by employee and quarter). The employee form carries a
 **Variable Pay** smart button. List, form, search, pivot and graph views are provided,
