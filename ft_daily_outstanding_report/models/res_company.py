@@ -51,7 +51,8 @@ class ResCompany(models.Model):
                      outstanding=amounts[1])
                 for (partner, currency), amounts in sorted(
                     totals.items(), key=lambda item: (
-                        item[0][0].name or '', item[0][0].id, item[0][1].id))]
+                        -item[1][1], item[0][0].name or '',
+                        item[0][0].id, item[0][1].id))]
 
     def _daily_outstanding_body(self, report_date):
         self.ensure_one()
@@ -66,25 +67,28 @@ class ResCompany(models.Model):
             self.name, str(report_date))
         for title, rows in sections:
             body += Markup('<h3>%s</h3><table border="1" cellpadding="8" '
-                           'cellspacing="0" style="border-collapse:collapse;width:100%%">'
-                           '<tr><th>Customer Name</th><th>Currency</th>'
-                           '<th>Total Amount</th><th>Outstanding Amount</th></tr>') % title
+                           'cellspacing="0" style="border-collapse:collapse;width:100%%;table-layout:fixed">'
+                           '<tr><th style="width:40%%;text-align:left">Customer Name</th>'
+                           '<th style="width:30%%">Total Amount</th>'
+                           '<th style="width:30%%">Outstanding Amount</th></tr>') % title
             totals = defaultdict(lambda: [0.0, 0.0])
             for row in rows:
                 currency = row['currency']
-                body += Markup('<tr><td>%s</td><td>%s</td><td align="right">%s</td>'
+                body += Markup('<tr><td style="overflow-wrap:anywhere;word-wrap:break-word">%s</td>'
+                               '<td align="right">%s</td>'
                                '<td align="right">%s</td></tr>') % (
-                    row['partner'].name, currency.name,
+                    row['partner'].name,
                     format_amount(self.env, row['total'], currency),
                     format_amount(self.env, row['outstanding'], currency))
                 totals[currency][0] += row['total']
                 totals[currency][1] += row['outstanding']
             for currency, amounts in totals.items():
-                body += Markup('<tr><th>Total</th><th>%s</th><th>%s</th><th>%s</th></tr>') % (
-                    currency.name, format_amount(self.env, amounts[0], currency),
+                body += Markup('<tr><th style="text-align:left">%s</th><th>%s</th><th>%s</th></tr>') % (
+                    ('Total (%s)' % currency.name) if len(totals) > 1 else 'Total',
+                    format_amount(self.env, amounts[0], currency),
                     format_amount(self.env, amounts[1], currency))
             if not rows:
-                body += Markup('<tr><td colspan="4">No outstanding amounts.</td></tr>')
+                body += Markup('<tr><td colspan="3">No outstanding amounts.</td></tr>')
             body += Markup('</table>')
         return body + Markup('<p>Totals include only documents with a positive outstanding '
                              'balance. Pro forma: Total / ProForma Balance; '
@@ -107,23 +111,22 @@ class ResCompany(models.Model):
             if not recipients or any(not email_normalize(p.email or '') for p in recipients):
                 _logger.warning('Daily outstanding report skipped: company %s has missing or invalid recipients', company.id)
                 continue
-            addresses = set()
-            for recipient in recipients.sorted('id'):
-                address = email_normalize(recipient.email)
-                if address in addresses:
-                    continue
-                addresses.add(address)
-                localized_company = company.with_company(company).with_context(lang=recipient.lang or 'en_US')
-                self.env['mail.mail'].sudo().create({
-                    # Give message writes the company's normal access rules.
-                    # Otherwise a non-author cannot persist message_id after SMTP delivery.
-                    'model': 'res.company',
-                    'res_id': company.id,
-                    'subject': _('Daily Outstanding Report - %(company)s - %(date)s',
-                                 company=company.name, date=now.date()),
-                    'body_html': localized_company._daily_outstanding_body(now.date()),
-                    'email_from': 'support@fingertipplus.com',
-                    'email_to': recipient.email_formatted,
-                    'auto_delete': False,
-                })
+            # One queued message for the company, with each address listed once.
+            addresses = list(dict.fromkeys(
+                email_normalize(recipient.email)
+                for recipient in recipients.sorted('id')
+            ))
+            report_company = company.with_company(company).with_context(
+                lang=company.partner_id.lang or 'en_US')
+            self.env['mail.mail'].sudo().create({
+                # Allow authorized administrators to persist the sent status.
+                'model': 'res.company',
+                'res_id': company.id,
+                'subject': _('Daily Outstanding Report - %(company)s - %(date)s',
+                             company=company.name, date=now.date()),
+                'body_html': report_company._daily_outstanding_body(now.date()),
+                'email_from': 'support@fingertipplus.com',
+                'email_to': ', '.join(addresses),
+                'auto_delete': False,
+            })
             company.daily_outstanding_last_date = now.date()

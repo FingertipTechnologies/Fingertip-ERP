@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from odoo.exceptions import ValidationError
 from odoo.tests import TransactionCase, tagged
+from odoo.tools import email_split
 
 
 @tagged('post_install', '-at_install')
@@ -35,7 +36,7 @@ class TestDailyOutstanding(TransactionCase):
         body = company._daily_outstanding_body(datetime(2026, 9, 23).date())
         self.assertEqual(str(body).count('<table'), 2)
         self.assertIn('Report &lt;Customer&gt;', body)
-        mail_domain = [('email_to', '=', partner.email_formatted)]
+        mail_domain = [('model', '=', 'res.company'), ('res_id', '=', company.id)]
         Mail = self.env['mail.mail']
         before = Mail.search_count(mail_domain)
         with patch('odoo.fields.Datetime.now', return_value=datetime(2026, 9, 23, 2, 29)):
@@ -55,8 +56,7 @@ class TestDailyOutstanding(TransactionCase):
             'failure_type': False, 'failure_reason': False,
         })
         self.assertEqual(queued.state, 'sent')
-        self.assertEqual(Mail.search_count([('email_to', '=', second.email_formatted)]), 1)
-        self.assertFalse(Mail.search_count([('email_to', '=', duplicate.email_formatted)]))
+        self.assertEqual(email_split(queued.email_to), ['report@example.com', 'second@example.com'])
         company.daily_outstanding_enabled = False
         with patch('odoo.fields.Datetime.now', return_value=datetime(2026, 9, 24, 2, 30)):
             company._cron_daily_outstanding_report()

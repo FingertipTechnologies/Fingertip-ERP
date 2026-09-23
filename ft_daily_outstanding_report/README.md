@@ -4,7 +4,7 @@ Sales → Configuration → Settings → Outstanding Reports. Enable Daily Outst
 Report, select contacts with valid email addresses, and save. Settings belong to the
 selected company; disabled by default.
 
-The scheduler queues one HTML email per distinct recipient address for each enabled company daily at 08:00 Asia/Kolkata
+The scheduler queues one HTML email per enabled company, addressed to all selected recipients daily at 08:00 Asia/Kolkata
 (02:30 UTC). Odoo's email queue and outgoing mail server deliver it; delivery can
 be later if the server or mail queue is stopped. Duplicate runs on the same India
 calendar date do not queue another message. Failed outgoing emails remain in the
@@ -54,3 +54,7 @@ the affected environment for newly generated emails to use the fix.
 The local backup's missing `mail_message` primary key was also restored (validated
 by PostgreSQL), because Odoo's message access SQL relies on that primary key for
 its GROUP BY query. This repair did not change message contents or delivery status.
+
+Version 19.0.1.1.3 queues one message with all distinct recipient email addresses in
+To. Recipients can see the other To addresses. The report is rendered once using
+the company contact’s language (English fallback).
