@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <record id="ir_cron_confirm_probation" model="ir.cron">
+    <field name="name">Payroll: Confirm employees whose probation has ended</field>
+    <field name="model_id" ref="hr.model_hr_employee"/>
+    <field name="state">code</field>
+    <field name="code">model._cron_confirm_probation()</field>
+    <field name="interval_number">1</field>
+    <field name="interval_type">days</field>
+  </record>
+</odoo>

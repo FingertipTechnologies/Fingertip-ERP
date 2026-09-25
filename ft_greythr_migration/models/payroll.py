@@ -12,11 +12,14 @@ NATIVE_COMPONENTS = {
     'full_telephone_charges': 'l10n_in_phone_subscription',
     'full_conveyance': 'l10n_in_company_transport',
     'full_gratuity': 'l10n_in_gratuity',
+    # No l10n_in field exists for this one, so it is backed by a field of our
+    # own. It behaves like the native components in every other way: applying a
+    # CTC writes it, the payslip rule reads it, and it counts in gross.
+    'full_children_education_allowance': 'ft_children_education_allowance',
 }
 EXTRA_EARNINGS = (
     'full_medical_allowance', 'full_consultancy_fees',
-    'full_children_education_allowance', 'full_attire_allowance',
-    'full_book_and_periodicals',
+    'full_attire_allowance', 'full_book_and_periodicals',
 )
 EARNINGS = tuple(n for n in NATIVE_COMPONENTS if n != 'full_gratuity') + EXTRA_EARNINGS
 
@@ -131,10 +134,24 @@ class HrVersion(models.Model):
             version.l10n_in_fixed_allowance = version.greythr_ctc_id.full_special_allowance
 
 
-    @api.depends('greythr_ctc_id', 'greythr_ctc_id.gross_difference',
+    ft_children_education_allowance = fields.Monetary(
+        string='Children Education Allowance', tracking=True,
+        groups='hr_payroll.group_hr_payroll_user',
+        help='Monthly children education allowance. Paid by the Children '
+             'Education Allowance rule on the payslip and counted in gross '
+             'salary, so it carries ESI and the professional tax slab with it.')
+
+    @api.depends('ft_children_education_allowance',
+                 'greythr_ctc_id', 'greythr_ctc_id.gross_difference',
                  *('greythr_ctc_id.' + name for name in EXTRA_EARNINGS))
     def _compute_l10n_in_gross_salary(self):
+        # Odoo merges @api.depends down the MRO, so only the dependencies added
+        # here need declaring; l10n_in's own list still applies.
         super()._compute_l10n_in_gross_salary()
+        for version in self:
+            # l10n_in's gross sums its own ten fields and cannot see ours.
+            if version.country_code == 'IN':
+                version.l10n_in_gross_salary += version.ft_children_education_allowance
         for version in self.filtered('greythr_ctc_id'):
             ctc = version.greythr_ctc_id
             version.l10n_in_gross_salary += sum(ctc[name] for name in EXTRA_EARNINGS) + ctc.gross_difference
@@ -145,6 +162,9 @@ class HrEmployee(models.Model):
 
     greythr_applied_ctc_id = fields.Many2one(related='version_id.greythr_ctc_id',
         groups='hr_payroll.group_hr_payroll_user', string='Applied greytHR CTC')
+    ft_children_education_allowance = fields.Monetary(
+        related='version_id.ft_children_education_allowance', readonly=False,
+        inherited=True, groups='hr_payroll.group_hr_payroll_user')
 
 
 class HrPayslip(models.Model):

@@ -49,6 +49,8 @@
             <field name="ft_annual_hra" string="House Rent Allowance"/>
             <field name="ft_annual_meal" string="Meal Allowance"
                    invisible="not ft_annual_meal"/>
+            <field name="ft_annual_children_education" string="Children Education Allowance"
+                   invisible="not ft_annual_children_education"/>
             <field name="ft_annual_lta" string="Leave Travel Allowance"
                    invisible="not ft_annual_lta"/>
             <field name="ft_annual_fixed_allowance" string="Special Allowance"/>
@@ -80,6 +82,14 @@
           </group>
         </group>
       </xpath>
+      <!-- Odoo has an End of Trial Period date but shows it nowhere. Put it
+           beside Contract Type so the confirmation date is visible, and let
+           HR edit it to extend or shorten a probation. -->
+      <field name="contract_type_id" position="after">
+        <field name="trial_date_end" string="Confirmation Date"
+               invisible="not trial_date_end"
+               help="Date this employee comes off probation. Set automatically to six months after the contract start date, and editable if the probation is extended or shortened. On this date a scheduled action changes the Contract Type to Full-Time."/>
+      </field>
       <xpath expr="//notebook" position="inside">
         <page string="greytHR Migration" groups="hr.group_hr_user">
           <group>
@@ -168,6 +178,36 @@
 
   <!-- The meal amount is paid as an earning (MEAL rule), so list it with the salary
        components instead of under Benefits. Same field, so computation is unchanged. -->
+  <record id="employee_form_in_children_education" model="ir.ui.view">
+    <field name="name">hr.employee.form.in.children.education</field>
+    <field name="model">hr.employee</field>
+    <field name="inherit_id" ref="l10n_in_hr_payroll.hr_employee_view_form_in_inherit"/>
+    <field name="arch" type="xml">
+      <separator name="benefits" position="before">
+        <label for="ft_children_education_allowance"/>
+        <div class="o_row">
+          <field name="ft_children_education_allowance" class="o_hr_narrow_field"/>
+          <span>/ month</span>
+        </div>
+      </separator>
+    </field>
+  </record>
+
+  <record id="contract_template_form_in_children_education" model="ir.ui.view">
+    <field name="name">hr.contract.template.form.in.children.education</field>
+    <field name="model">hr.version</field>
+    <field name="inherit_id" ref="l10n_in_hr_payroll.hr_contract_template_view_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//field[@name='l10n_in_meal_voucher_amount']/.." position="after">
+        <label for="ft_children_education_allowance"/>
+        <div class="o_row">
+          <field name="ft_children_education_allowance" class="o_hr_narrow_field"/>
+          <span>/ month</span>
+        </div>
+      </xpath>
+    </field>
+  </record>
+
   <record id="employee_form_in_meal_allowance" model="ir.ui.view">
     <field name="name">hr.employee.form.in.meal.allowance</field>
     <field name="model">hr.employee</field>

@@ -1,5 +1,5 @@
 {'name': 'Fingertip greytHR Migration',
- 'version': '19.0.1.6.0',
+ 'version': '19.0.1.9.0',
  'author': 'Fingertip',
  'license': 'LGPL-3',
  'depends': ['l10n_in_hr_payroll', 'mail'],
@@ -7,8 +7,11 @@
           'security/ir.model.access.csv',
           'data/payroll_structure.xml',
           'data/variable_pay_data.xml',
+          'data/probation_cron.xml',
+          'data/in_regular_pay_rules.xml',
           'views/hr_variable_pay.xml',
           'views/hr_employee.xml',
+          'views/res_bank_views.xml',
           'views/report_payslip.xml',
           'views/report_payslip_reference.xml'],
  'installable': True}

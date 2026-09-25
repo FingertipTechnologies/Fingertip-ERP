@@ -86,6 +86,7 @@
                                             <tr><td>Employee No:</td><td><span t-field="e.registration_number"/></td></tr>
                                             <tr><td>Bank Name:</td><td t-out="v['bank_name']"/></tr>
                                             <tr><td>Bank Account No:</td><td t-out="v['bank_account']"/></tr>
+                                            <tr><td>Bank IFSC:</td><td t-out="v['bank_ifsc']"/></tr>
                                             <tr><td>PF No:</td><td><span t-field="e.greythr_pf_number"/></td></tr>
                                             <tr><td>PF UAN:</td><td><span t-field="e.l10n_in_uan"/></td></tr>
                                             <tr><td>ESI Number:</td><td><span t-field="e.l10n_in_esic_number"/></td></tr>

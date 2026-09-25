@@ -1,0 +1,48 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+
+  <record id="view_res_bank_form_ifsc" model="ir.ui.view">
+    <field name="name">res.bank.form.ifsc</field>
+    <field name="model">res.bank</field>
+    <field name="inherit_id" ref="base.view_res_bank_form"/>
+    <field name="arch" type="xml">
+      <field name="bic" position="after">
+        <field name="ifsc_code" placeholder="HDFC0001208"/>
+      </field>
+    </field>
+  </record>
+
+  <record id="view_res_bank_tree_ifsc" model="ir.ui.view">
+    <field name="name">res.bank.list.ifsc</field>
+    <field name="model">res.bank</field>
+    <field name="inherit_id" ref="base.view_res_bank_tree"/>
+    <field name="arch" type="xml">
+      <field name="bic" position="after">
+        <field name="ifsc_code" optional="show"/>
+      </field>
+    </field>
+  </record>
+
+  <record id="res_bank_view_search_ifsc" model="ir.ui.view">
+    <field name="name">res.bank.view.search.ifsc</field>
+    <field name="model">res.bank</field>
+    <field name="inherit_id" ref="base.res_bank_view_search"/>
+    <field name="arch" type="xml">
+      <field name="name" position="after">
+        <field name="ifsc_code"/>
+      </field>
+    </field>
+  </record>
+
+  <record id="view_partner_bank_form_ifsc" model="ir.ui.view">
+    <field name="name">res.partner.bank.form.ifsc</field>
+    <field name="model">res.partner.bank</field>
+    <field name="inherit_id" ref="base.view_partner_bank_form"/>
+    <field name="arch" type="xml">
+      <field name="bank_id" position="after">
+        <field name="bank_ifsc" placeholder="HDFC0001208"/>
+      </field>
+    </field>
+  </record>
+
+</odoo>

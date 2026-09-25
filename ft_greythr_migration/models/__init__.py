@@ -4,3 +4,5 @@ from . import payslip_report
 from . import payroll_structure
 from . import variable_pay
 from . import ctc_breakup
+from . import res_bank
+from . import probation

@@ -18,6 +18,10 @@ ANNUAL_EARNINGS = {
     'ft_annual_lta': 'l10n_in_leave_travel_allowance',
     'ft_annual_fixed_allowance': 'l10n_in_fixed_allowance',
     'ft_annual_meal': 'l10n_in_meal_voucher_amount',
+    # Ours, not l10n_in's - see NATIVE_COMPONENTS in payroll.py. It is listed
+    # here because _compute_l10n_in_gross_salary adds it to the gross, so the
+    # lines and the Gross Total still reconcile.
+    'ft_annual_children_education': 'ft_children_education_allowance',
     'ft_annual_phone': 'l10n_in_phone_subscription',
     'ft_annual_internet': 'l10n_in_internet_subscription',
     'ft_annual_transport': 'l10n_in_company_transport',
@@ -66,6 +70,7 @@ class HrVersion(models.Model):
     ft_annual_lta = _annual('Leave Travel Allowance (Yearly)')
     ft_annual_fixed_allowance = _annual('Fixed Allowance (Yearly)')
     ft_annual_meal = _annual('Meal Allowance (Yearly)')
+    ft_annual_children_education = _annual('Children Education Allowance (Yearly)')
     ft_annual_phone = _annual('Phone Subscription (Yearly)')
     ft_annual_internet = _annual('Internet Subscription (Yearly)')
     ft_annual_transport = _annual('Company Transport (Yearly)')
@@ -187,6 +192,7 @@ class HrEmployee(models.Model):
     ft_annual_lta = _related('ft_annual_lta')
     ft_annual_fixed_allowance = _related('ft_annual_fixed_allowance')
     ft_annual_meal = _related('ft_annual_meal')
+    ft_annual_children_education = _related('ft_annual_children_education')
     ft_annual_phone = _related('ft_annual_phone')
     ft_annual_internet = _related('ft_annual_internet')
     ft_annual_transport = _related('ft_annual_transport')

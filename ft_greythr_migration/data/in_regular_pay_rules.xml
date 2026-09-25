@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <!-- The same allowance on Odoo's own India structure.
+
+       It reads the version field directly rather than going through
+       payslip._greythr_component(), which insists on an applied greytHR CTC
+       and would raise for anyone on this structure. Sequence 37 sits it between
+       Meal vouchers (36) and Company Transport (38), with the other
+       allowances, and the ALW category means the structure's
+       GROSS = BASIC + ALW picks it up without any further change.
+
+       No proration here: every allowance rule in this structure pays the full
+       monthly amount, unlike the greytHR structure which scales by paid days. -->
+  <record id="in_regular_rule_edualw" model="hr.salary.rule">
+    <field name="code">EDUALW</field>
+    <field name="name">Children Education Allowance</field>
+    <field name="category_id" ref="hr_payroll.ALW"/>
+    <field name="sequence" eval="37"/>
+    <field name="condition_select">python</field>
+    <field name="condition_python">result = bool(version.ft_children_education_allowance)</field>
+    <field name="amount_select">code</field>
+    <field name="amount_python_compute">result = version.ft_children_education_allowance</field>
+    <field name="struct_id" ref="l10n_in_hr_payroll.hr_payroll_structure_in_employee_salary"/>
+  </record>
+</odoo>

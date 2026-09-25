@@ -77,6 +77,8 @@ class HrPayslip(models.Model):
             'days_in_month': calendar.monthrange(self.date_from.year, self.date_from.month)[1],
             'effective_days': max(days - lop, 0), 'lop': lop,
             'bank_name': bank.bank_id.name or '', 'bank_account': bank.acc_number or '',
+            # bank_bic fallback: banks whose IFSC still sits in the BIC field.
+            'bank_ifsc': bank.bank_ifsc or bank.bank_bic or '',
             'designation': version.job_id.name or employee.job_title or '',
             'department': version.department_id.name or '',
             'location': version.work_location_id.name or self.company_id.city or '',

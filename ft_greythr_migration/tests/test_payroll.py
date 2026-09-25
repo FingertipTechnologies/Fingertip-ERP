@@ -200,3 +200,69 @@ class TestGreythrPayroll(TransactionCase):
                 self.assertEqual((label.tag, label.get('for'), label.get('string')),
                                  ('label', 'l10n_in_meal_voucher_amount', 'Meal Allowance'))
                 self.assertEqual(label.getprevious().xpath("field/@name"), ['l10n_in_fixed_allowance'])
+
+    def test_children_education_allowance_reaches_payslip(self):
+        """It behaves like a salary component, not a side payment: applying the
+        CTC writes it to the version, its own rule pays it, and it lands inside
+        gross, so the payslip and the yearly CTC sheet agree on one number."""
+        ctc = self.ctc.copy({
+            'effective_date': '2026-07-01', 'monthly_gross': 32000,
+            'full_children_education_allowance': 2000,
+        })
+        ctc.action_apply_to_payroll()
+        version = self.employee._get_version('2026-07-01')
+
+        # On the version, and twelve times that on the yearly sheet.
+        self.assertAlmostEqual(version.ft_children_education_allowance, 2000, places=2)
+        self.assertAlmostEqual(version.ft_annual_children_education, 24000, places=2)
+
+        # Inside gross, not bolted on beside it.
+        self.assertAlmostEqual(version.l10n_in_gross_salary, 31999.5, places=2)
+
+        slip = self._slip(date_from='2026-07-01', date_to='2026-07-31')
+        lines = {l.code: l.total for l in slip.line_ids}
+        self.assertAlmostEqual(lines['EDUALW'], 2000, places=2)
+        self.assertAlmostEqual(lines['GROSS'], 31999.5, places=2)
+        # Paid once: gross is the earnings, not the earnings plus the allowance.
+        self.assertAlmostEqual(
+            lines['GROSS'],
+            lines['BASIC'] + lines['HRA'] + lines['SPL'] + lines['LTA']
+            + lines['MEAL'] + lines['EDUALW'], places=2)
+
+    def test_children_education_allowance_listed_with_salary_components(self):
+        for model, view in (('hr.employee', 'hr.view_employee_form'),
+                            ('hr.version', 'hr.hr_contract_template_form_view')):
+            with self.subTest(model=model):
+                arch = etree.fromstring(self.env[model].get_view(self.env.ref(view).id, 'form')['arch'])
+                field = arch.xpath("//field[@name='ft_children_education_allowance']")
+                self.assertEqual(len(field), 1)
+
+    def test_children_education_allowance_on_india_regular_pay(self):
+        """The same allowance on Odoo's own India structure, where there is no
+        greytHR CTC to read from: the rule takes it off the version directly,
+        and the ALW category carries it into that structure's own gross."""
+        attendance = self.env.ref('hr_work_entry.work_entry_type_attendance')
+        employee = self.env['hr.employee'].create({
+            'name': 'Regular Pay Employee', 'company_id': self.company.id,
+            'date_version': '2026-06-01', 'contract_date_start': '2026-06-01',
+            'wage': 30000,
+        })
+        employee.ft_children_education_allowance = 1500
+        slip = self.env['hr.payslip'].create({
+            'name': 'Regular pay CEA', 'employee_id': employee.id,
+            'date_from': '2026-06-01', 'date_to': '2026-06-30',
+            'struct_id': self.env.ref(
+                'l10n_in_hr_payroll.hr_payroll_structure_in_employee_salary').id,
+            'worked_days_line_ids': [Command.create({
+                'work_entry_type_id': attendance.id,
+                'number_of_days': 20, 'number_of_hours': 160})],
+        })
+        slip.compute_sheet()
+        lines = {l.code: l.total for l in slip.line_ids}
+        self.assertAlmostEqual(lines['EDUALW'], 1500, places=2)
+        # GROSS on this structure is BASIC + ALW, and EDUALW is an ALW rule.
+        basic = sum(l.total for l in slip.line_ids if l.category_id.code == 'BASIC')
+        allowances = sum(l.total for l in slip.line_ids if l.category_id.code == 'ALW')
+        self.assertAlmostEqual(lines['GROSS'], basic + allowances, places=2)
+        self.assertIn('EDUALW', [l.code for l in slip.line_ids
+                                 if l.category_id.code == 'ALW'])
