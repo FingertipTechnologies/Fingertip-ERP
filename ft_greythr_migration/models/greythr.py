@@ -5,6 +5,8 @@ class HrEmployee(models.Model):
     _inherit = 'hr.employee'
 
     greythr_father_name = fields.Char("Father's Name", groups='hr.group_hr_user')
+    greythr_mother_name = fields.Char("Mother's Name", groups='hr.group_hr_user')
+    greythr_aadhar_number = fields.Char('Aadhar Number', groups='hr.group_hr_user', copy=False)
     greythr_role = fields.Char('greytHR Role', groups='hr.group_hr_user')
     greythr_pf_number = fields.Char('PF Number', groups='hr.group_hr_user')
     greythr_pf_join_date = fields.Date('PF Join Date', groups='hr.group_hr_user')

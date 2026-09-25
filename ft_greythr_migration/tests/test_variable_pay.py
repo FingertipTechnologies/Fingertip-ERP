@@ -67,6 +67,96 @@ class TestVariablePay(TransactionCase):
     def test_target_defaults_from_contract(self):
         self.assertEqual(self._record().quarterly_target, 15000)
 
+    def test_flexible_award_defaults_without_period(self):
+        record = self.env['hr.variable.pay'].create({
+            'employee_id': self.employee.id, 'company_id': self.company.id,
+        })
+        self.assertFalse(record.quarter)
+        self.assertFalse(record.date_start)
+        self.assertFalse(record.date_end)
+        self.assertTrue(record.payout_date)
+        self.assertEqual(record.quarterly_target, 0)
+
+    def test_multiple_flexible_awards_reach_selected_payslip(self):
+        first = self._approved(quarter=False, date_start='2026-04-01', date_end='2026-05-31',
+                               payout_date='2026-06-15')
+        second = self._approved(quarter=False, date_start='2026-06-01', date_end='2026-06-15', use_override=True,
+                                amount_override=2500, payout_date='2026-06-25')
+        later = self._approved(quarter=False, date_start='2026-06-01', date_end='2026-06-30',
+                               payout_date='2026-07-15')
+        self.env.flush_all()
+        slip = self._slip()
+        self.assertEqual(slip._ft_variable_pay_input_amount(), 10500)
+        self.assertEqual(set(slip._ft_eligible_variable_pay().ids), {first.id, second.id})
+        self.assertNotIn(later, slip._ft_eligible_variable_pay())
+        slip.action_payslip_done()
+        self.assertEqual(first.payslip_id, slip)
+        self.assertEqual(second.payslip_id, slip)
+        self.assertFalse(self._slip()._ft_variable_pay_input_amount())
+        slip.action_payslip_paid()
+        self.assertEqual(first.state, 'paid')
+        self.assertEqual(second.state, 'paid')
+        self.assertEqual(later.state, 'approved')
+
+    def test_partial_review_months(self):
+        record = self._record(quarter=False, date_start='2026-04-12',
+                              date_end='2026-05-19')
+        self.assertEqual(str(record.payout_date), '2026-05-19')
+        # April 12–30: 19/30 of a month; May 1–19: 19/31.
+        self.assertEqual(record.quarterly_target, 6231.18)
+        self.assertEqual(record.amount_payable, 4984.94)
+
+    def test_review_target_tracks_dates_and_annual_pay(self):
+        record = self._record(quarter=False, date_start='2026-07-01', date_end='2026-08-31')
+        self.assertEqual(record.quarterly_target, 10000)
+        record.date_end = '2026-09-30'
+        self.assertEqual(record.quarterly_target, 15000)
+        self.employee.version_id.ft_annual_variable_pay = 120000
+        self.assertEqual(record.quarterly_target, 30000)
+        record.action_submit()
+        record.action_approve()
+        self.employee.version_id.ft_annual_variable_pay = 180000
+        self.assertEqual(record.quarterly_target, 30000)
+        record.action_reset_to_draft()
+        self.assertEqual(record.quarterly_target, 45000)
+
+    def test_edited_target_survives_submission_and_approval(self):
+        record = self._record(quarter=False, date_start='2026-07-01', date_end='2026-08-31')
+        self.assertEqual(record.quarterly_target, 10000)
+        record.quarterly_target = 12000
+        self.assertEqual(record.amount_payable, 9600)
+        record.action_submit()
+        self.assertEqual(record.quarterly_target, 12000)
+        record.quarterly_target = 13000
+        record.action_approve()
+        self.assertEqual(record.quarterly_target, 13000)
+        self.assertEqual(record.amount_payable, 10400)
+
+    def test_edited_target_recalculates_when_dates_change(self):
+        record = self._record(quarter=False, date_start='2026-07-01', date_end='2026-08-31')
+        record.quarterly_target = 12000
+        record.date_end = '2026-09-30'
+        self.assertEqual(record.quarterly_target, 15000)
+
+    def test_leap_year_and_cross_year_review(self):
+        record = self._record(quarter=False, date_start='2024-02-15', date_end='2024-02-29')
+        self.assertEqual(record.quarterly_target, 2586.21)
+        record.write({'date_start': '2026-12-01', 'date_end': '2027-01-31'})
+        self.assertEqual(record.quarterly_target, 10000)
+
+    def test_approval_requires_review_dates(self):
+        record = self._record(quarter=False)
+        record.action_submit()
+        with self.assertRaises(UserError):
+            record.action_approve()
+
+    def test_approval_requires_payout_date(self):
+        record = self._record(quarter=False, date_start='2026-07-01',
+                              date_end='2026-08-31', payout_date=False)
+        record.action_submit()
+        with self.assertRaises(UserError):
+            record.action_approve()
+
     # ------------------------------------------------------------------
     # Quarter arithmetic (Indian financial year)
     # ------------------------------------------------------------------

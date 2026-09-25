@@ -1,19 +1,19 @@
 <?xml version='1.0' encoding='utf-8'?>
 <odoo>
     <record id="sequence_variable_pay" model="ir.sequence">
-        <field name="name">Quarterly Variable Pay</field>
+        <field name="name">Performance Variable Pay</field>
         <field name="code">hr.variable.pay</field>
         <field name="prefix">VP/%(year)s/</field>
         <field name="padding">4</field>
         <field name="company_id" eval="False"/>
     </record>
 
-    <!-- Other Input carrying the approved quarterly amount onto the payslip.
+    <!-- Other Input carrying the approved award amount onto the payslip.
          Offered on both India structures. available_in_attachments stays False
          so the standard salary-adjustment compute never claims or deletes these
          lines. -->
     <record id="input_type_variable_pay" model="hr.payslip.input.type">
-        <field name="name">Quarterly Variable Pay</field>
+        <field name="name">Performance Variable Pay</field>
         <field name="code">VAR_PAY</field>
         <field name="available_in_attachments" eval="False"/>
         <field name="struct_ids" eval="[
@@ -41,7 +41,7 @@
          structure needs applies here. -->
     <record id="regular_rule_variable_pay" model="hr.salary.rule">
         <field name="code">VAR_PAY</field>
-        <field name="name">Quarterly Variable Pay</field>
+        <field name="name">Performance Variable Pay</field>
         <field name="category_id" ref="hr_payroll.ALW"/>
         <field name="sequence">40</field>
         <field name="struct_id" ref="l10n_in_hr_payroll.hr_payroll_structure_in_employee_salary"/>
@@ -58,7 +58,7 @@
          categories['ALW'] when GROSS_RECON subtracts it back out again. -->
     <record id="greythr_rule_variable_pay" model="hr.salary.rule">
         <field name="code">VAR_PAY</field>
-        <field name="name">Quarterly Variable Pay</field>
+        <field name="name">Performance Variable Pay</field>
         <field name="category_id" ref="hr_payroll.ALW"/>
         <field name="sequence">98</field>
         <field name="struct_id" ref="greythr_structure"/>

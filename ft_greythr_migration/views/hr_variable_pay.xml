@@ -4,13 +4,12 @@
     <field name="name">hr.variable.pay.list</field>
     <field name="model">hr.variable.pay</field>
     <field name="arch" type="xml">
-      <list string="Quarterly Variable Pay" sample="1"
+      <list string="Performance Variable Pay" sample="1"
             decoration-muted="state == 'paid'" decoration-info="state == 'draft'">
         <field name="name"/>
         <field name="employee_id"/>
         <field name="department_id" optional="show"/>
         <field name="financial_year_label" string="Financial Year"/>
-        <field name="quarter"/>
         <field name="date_start" optional="hide"/>
         <field name="date_end" optional="hide"/>
         <field name="payout_date" optional="show"/>
@@ -31,7 +30,7 @@
     <field name="name">hr.variable.pay.form</field>
     <field name="model">hr.variable.pay</field>
     <field name="arch" type="xml">
-      <form string="Quarterly Variable Pay">
+      <form string="Performance Variable Pay">
         <header>
           <button name="action_submit" type="object" string="Submit"
                   class="btn-primary" invisible="state != 'draft'"/>
@@ -63,10 +62,9 @@
             </group>
             <group string="Period">
               <field name="financial_year" readonly="state != 'draft'"/>
-              <field name="quarter" readonly="state != 'draft'"/>
-              <field name="date_start" readonly="state != 'draft'"/>
-              <field name="date_end" readonly="state != 'draft'"/>
-              <field name="payout_date" readonly="state == 'paid'"/>
+              <field name="date_start" required="1" readonly="state != 'draft'"/>
+              <field name="date_end" required="1" readonly="state != 'draft'"/>
+              <field name="payout_date" required="1" readonly="state not in ('draft', 'submitted')"/>
             </group>
             <group string="Performance">
               <field name="quarterly_target" readonly="state not in ('draft', 'submitted')"/>
@@ -85,6 +83,10 @@
               <field name="approved_by_id"/>
               <field name="approval_date"/>
             </group>
+          </group>
+          <group string="Performance Assessment">
+            <field name="performance_notes" nolabel="1" readonly="state not in ('draft', 'submitted')"
+                   placeholder="Describe the achievements and basis for this award…"/>
           </group>
           <group string="Remarks">
             <field name="remarks" nolabel="1" placeholder="Why this payout differs from the target…"/>
@@ -115,10 +117,6 @@
         <filter name="filter_unpaid" string="Approved, Not Paid"
                 domain="[('state', '=', 'approved'), ('payslip_id', '=', False)]"/>
         <separator/>
-        <filter name="filter_q1" string="Q1" domain="[('quarter', '=', 'q1')]"/>
-        <filter name="filter_q2" string="Q2" domain="[('quarter', '=', 'q2')]"/>
-        <filter name="filter_q3" string="Q3" domain="[('quarter', '=', 'q3')]"/>
-        <filter name="filter_q4" string="Q4" domain="[('quarter', '=', 'q4')]"/>
         <!-- Bare <group>: Odoo 19 search views reject expand/string on it. -->
         <group>
           <filter name="group_employee" string="Employee" context="{'group_by': 'employee_id'}"/>
@@ -126,7 +124,7 @@
           <filter name="group_company" string="Company" context="{'group_by': 'company_id'}"
                   groups="base.group_multi_company"/>
           <filter name="group_fy" string="Financial Year" context="{'group_by': 'financial_year'}"/>
-          <filter name="group_quarter" string="Quarter" context="{'group_by': 'quarter'}"/>
+          <filter name="group_payout_month" string="Payout Month" context="{'group_by': 'payout_date:month'}"/>
           <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
         </group>
       </search>
@@ -139,7 +137,7 @@
     <field name="arch" type="xml">
       <pivot string="Variable Pay Analysis" sample="1">
         <field name="employee_id" type="row"/>
-        <field name="quarter" type="col"/>
+        <field name="payout_date" interval="month" type="col"/>
         <field name="quarterly_target" type="measure"/>
         <field name="amount_payable" type="measure"/>
         <field name="performance_percentage" type="measure"/>
@@ -152,7 +150,7 @@
     <field name="model">hr.variable.pay</field>
     <field name="arch" type="xml">
       <graph string="Variable Pay" sample="1">
-        <field name="quarter"/>
+        <field name="payout_date" interval="month"/>
         <field name="amount_payable" type="measure"/>
       </graph>
     </field>
@@ -164,9 +162,10 @@
     <field name="view_mode">list,form,pivot,graph</field>
     <field name="search_view_id" ref="variable_pay_view_search"/>
     <field name="help" type="html">
-      <p class="o_view_nocontent_smiling_face">Record a quarter of performance-based variable pay</p>
-      <p>The quarterly target comes from the annual variable pay on the employee's
-         contract, divided by four. Once approved, the amount reaches the payslip
+      <p class="o_view_nocontent_smiling_face">Record a performance-based variable pay award</p>
+      <p>Choose review start and end dates. The award target is prorated from the employee’s
+         annual variable pay. Enter performance percentage and choose a payout date.
+         Once approved, the amount reaches the payslip
          whose period contains its payout date.</p>
     </field>
   </record>
@@ -176,7 +175,7 @@
     <field name="res_model">hr.variable.pay</field>
     <field name="view_mode">pivot,graph,list</field>
     <field name="search_view_id" ref="variable_pay_view_search"/>
-    <field name="context">{'search_default_group_employee': 1, 'search_default_group_quarter': 1}</field>
+    <field name="context">{'search_default_group_employee': 1, 'search_default_group_payout_month': 1}</field>
   </record>
 
   <menuitem id="menu_variable_pay"

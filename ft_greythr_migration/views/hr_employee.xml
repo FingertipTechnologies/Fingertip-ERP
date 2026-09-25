@@ -5,6 +5,10 @@
     <field name="model">hr.employee</field>
     <field name="inherit_id" ref="hr.view_employee_form"/>
     <field name="arch" type="xml">
+      <xpath expr="//group[@name='hr_family_group']" position="inside">
+        <field name="greythr_father_name" groups="hr.group_hr_user"/>
+        <field name="greythr_mother_name" groups="hr.group_hr_user"/>
+      </xpath>
       <!-- Smart button, beside the payslip one hr_payroll adds. -->
       <button name="action_open_versions" position="before">
         <button class="oe_stat_button" name="action_open_variable_pay"
@@ -19,15 +23,67 @@
       <xpath expr="//page[@name='payroll_information']" position="inside">
         <group string="Variable Pay" groups="hr_payroll.group_hr_payroll_user">
           <field name="ft_annual_variable_pay"/>
-          <field name="ft_quarterly_variable_pay"/>
           <field name="ft_variable_pay_count"/>
+        </group>
+        <!-- Read-only CTC breakup in the shape of the Fingertip CTC sheet:
+             Yearly beside Monthly, with the same subtotals. Derived entirely
+             from the salary fields above - nothing here is stored or editable,
+             and editing salary stays where it always was. -->
+        <group string="Annual CTC Breakup" groups="hr_payroll.group_hr_payroll_user">
+          <group string="Yearly">
+            <field name="ft_annual_gross" string="Fixed Pay"/>
+            <field name="ft_annual_variable_pay" string="Variable Pay" readonly="1"/>
+            <field name="ft_annual_pf_employer" string="PF - Employer"/>
+            <field name="ft_annual_esic_employer" string="ESI - Employer"/>
+            <field name="ft_annual_gratuity" string="Gratuity"/>
+            <field name="ft_annual_lwf_employer" string="LWF - Employer"
+                   invisible="not ft_annual_lwf_employer"/>
+            <field name="ft_annual_ctc" string="Total CTC" class="oe_subtotal_footer_separator"/>
+          </group>
+          <group string="Monthly">
+            <field name="l10n_in_gross_salary" string="Fixed Pay" readonly="1"/>
+            <field name="ft_monthly_ctc" string="Total CTC" class="oe_subtotal_footer_separator"/>
+          </group>
+          <group string="Fixed Salary Break Up (Yearly)">
+            <field name="ft_annual_basic" string="Basic Salary"/>
+            <field name="ft_annual_hra" string="House Rent Allowance"/>
+            <field name="ft_annual_meal" string="Meal Allowance"
+                   invisible="not ft_annual_meal"/>
+            <field name="ft_annual_lta" string="Leave Travel Allowance"
+                   invisible="not ft_annual_lta"/>
+            <field name="ft_annual_fixed_allowance" string="Special Allowance"/>
+            <field name="ft_annual_standard_allowance" string="Standard Allowance"
+                   invisible="not ft_annual_standard_allowance"/>
+            <field name="ft_annual_performance_bonus" string="Performance Bonus"
+                   invisible="not ft_annual_performance_bonus"/>
+            <field name="ft_annual_phone" string="Phone Subscription"
+                   invisible="not ft_annual_phone"/>
+            <field name="ft_annual_internet" string="Internet Subscription"
+                   invisible="not ft_annual_internet"/>
+            <field name="ft_annual_transport" string="Company Transport"
+                   invisible="not ft_annual_transport"/>
+            <field name="ft_annual_gross" string="Gross Total"
+                   class="oe_subtotal_footer_separator"/>
+          </group>
+          <group string="Deductions (Yearly)">
+            <field name="ft_annual_pf_employee" string="PF - Employee"/>
+            <field name="ft_annual_esic_employee" string="ESI - Employee"/>
+            <field name="ft_annual_professional_tax" string="Professional Tax"/>
+            <field name="ft_annual_medical_insurance" string="Medical Insurance"
+                   invisible="not ft_annual_medical_insurance"/>
+            <field name="ft_annual_lwf_employee" string="LWF - Employee"
+                   invisible="not ft_annual_lwf_employee"/>
+            <field name="ft_annual_total_deductions" string="Total Deductions"
+                   class="oe_subtotal_footer_separator"/>
+            <field name="ft_annual_net_payable" string="Net Payable"/>
+            <field name="ft_monthly_net_payable" string="Net Payable (Monthly)"/>
+          </group>
         </group>
       </xpath>
       <xpath expr="//notebook" position="inside">
         <page string="greytHR Migration" groups="hr.group_hr_user">
           <group>
             <field name="greythr_role"/>
-            <field name="greythr_father_name"/>
             <field name="greythr_pf_number"/>
             <field name="greythr_pf_join_date"/>
             <field name="greythr_pf_eligible"/>
@@ -95,6 +151,18 @@
           </field>
         </page>
       </xpath>
+    </field>
+  </record>
+
+  <record id="employee_form_in_aadhar" model="ir.ui.view">
+    <field name="name">hr.employee.form.in.aadhar</field>
+    <field name="model">hr.employee</field>
+    <field name="inherit_id" ref="l10n_in_hr_payroll.hr_employee_view_form_in_inherit"/>
+    <field name="arch" type="xml">
+      <field name="l10n_in_uan" position="before">
+        <field name="greythr_aadhar_number" placeholder="12 digit Aadhar Number"
+               groups="hr.group_hr_user"/>
+      </field>
     </field>
   </record>
 

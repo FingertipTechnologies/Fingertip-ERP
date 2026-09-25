@@ -31,16 +31,16 @@ UNLOCKED_AFTER_APPROVAL = {
 
 
 class HrVariablePay(models.Model):
-    """One quarter of performance-based variable pay for one employee.
+    """A performance-based variable pay award for one employee.
 
     The annual target lives on the employment version (Odoo 19's replacement for
-    hr.contract); this model turns a quarter of it into an amount somebody has
+    hr.contract); this model records an amount somebody has
     approved, and hands that amount to exactly one payslip.
     """
     _name = 'hr.variable.pay'
-    _description = 'Quarterly Variable Pay'
+    _description = 'Performance Variable Pay'
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    _order = 'financial_year desc, quarter desc, employee_id'
+    _order = 'payout_date desc, id desc'
     _rec_name = 'name'
 
     name = fields.Char(copy=False, readonly=True, default=lambda self: self.env._('New'))
@@ -48,11 +48,11 @@ class HrVariablePay(models.Model):
         'hr.employee', required=True, index=True, ondelete='restrict',
         tracking=True, check_company=True)
     # The version the target was read from, kept so a later salary revision
-    # cannot silently restate what a past quarter was measured against.
+    # cannot silently restate what a past award was measured against.
     version_id = fields.Many2one(
         'hr.version', string='Contract', ondelete='restrict',
         compute='_compute_version_id', store=True, readonly=False,
-        check_company=True, help='Employment version supplying the quarterly target.')
+        check_company=True, help='Employment version associated with this award.')
     company_id = fields.Many2one(
         'res.company', required=True, index=True,
         default=lambda self: self.env.company)
@@ -67,11 +67,12 @@ class HrVariablePay(models.Model):
     quarter = fields.Selection(
         [('q1', 'Q1 (Apr-Jun)'), ('q2', 'Q2 (Jul-Sep)'),
          ('q3', 'Q3 (Oct-Dec)'), ('q4', 'Q4 (Jan-Mar)')],
-        required=True, default='q1', index=True, tracking=True)
+        string='Quarter Preset', index=True, tracking=True,
+        help='Optional. Leave empty for an award with no fixed period.')
     date_start = fields.Date(
-        'Quarter Start', compute='_compute_quarter_dates', store=True, readonly=False)
+        'Review Start', compute='_compute_quarter_dates', store=True, readonly=False)
     date_end = fields.Date(
-        'Quarter End', compute='_compute_quarter_dates', store=True, readonly=False)
+        'Review End', compute='_compute_quarter_dates', store=True, readonly=False)
     # Which payslip period should carry the payout. Defaults to the quarter end
     # but is editable: a quarter closing 30 June is usually paid with July's
     # payroll, and that decision belongs to HR rather than to this module.
@@ -80,13 +81,15 @@ class HrVariablePay(models.Model):
         help='The payslip whose period contains this date picks the amount up.')
 
     quarterly_target = fields.Monetary(
-        compute='_compute_quarterly_target', store=True, readonly=False, tracking=True,
-        help='Defaults to the annual variable pay on the contract, divided by four.')
+        'Award Target', compute='_compute_quarterly_target', store=True, readonly=False, tracking=True,
+        help='Annual variable pay / 12 for each full review month. Partial months use '
+             'inclusive review days / calendar days in that month. Editable before approval; '
+             'changing review dates or contract variable pay recalculates the target.')
     performance_percentage = fields.Float(
         'Performance %', default=100.0, tracking=True, digits='Payroll Rate')
     amount_computed = fields.Monetary(
         'Calculated Amount', compute='_compute_amount_computed', store=True,
-        help='Quarterly target x performance percentage / 100.')
+        help='Award target x performance percentage / 100.')
     # An override is a separate stored field rather than an editable computed
     # amount: a computed one is silently overwritten the next time the target or
     # the percentage changes, which on a figure somebody approved is a bug.
@@ -98,6 +101,7 @@ class HrVariablePay(models.Model):
         'Payable Amount', compute='_compute_amount_payable', store=True, tracking=True)
 
     remarks = fields.Text()
+    performance_notes = fields.Text('Performance Assessment', tracking=True)
     approved_by_id = fields.Many2one('res.users', 'Approved By', readonly=True, copy=False)
     approval_date = fields.Datetime(readonly=True, copy=False)
     payslip_id = fields.Many2one(
@@ -149,12 +153,26 @@ class HrVariablePay(models.Model):
     @api.depends('date_end')
     def _compute_payout_date(self):
         for record in self:
-            record.payout_date = record.date_end
+            record.payout_date = record.date_end or fields.Date.context_today(record)
 
-    @api.depends('version_id', 'version_id.ft_quarterly_variable_pay')
+    @api.depends('version_id', 'version_id.ft_annual_variable_pay', 'date_start', 'date_end')
     def _compute_quarterly_target(self):
         for record in self:
-            record.quarterly_target = record.version_id.sudo().ft_quarterly_variable_pay
+            # Salary revisions must not change an already approved payout.
+            if record.state in ('approved', 'paid') and record._origin.id:
+                record.quarterly_target = record._origin.quarterly_target
+                continue
+            months = 0.0
+            current = record.date_start
+            end = record.date_end
+            while current and end and current <= end:
+                next_month = current.replace(day=1) + relativedelta(months=1)
+                month_end = next_month - relativedelta(days=1)
+                covered_end = min(end, month_end)
+                months += ((covered_end - current).days + 1) / month_end.day
+                current = next_month
+            target = record.version_id.sudo().ft_annual_variable_pay * months / 12.0
+            record.quarterly_target = record.currency_id.round(target) if record.currency_id else target
 
     @api.depends('quarterly_target', 'performance_percentage')
     def _compute_amount_computed(self):
@@ -200,7 +218,7 @@ class HrVariablePay(models.Model):
     def _check_quarter_dates(self):
         for record in self:
             if record.date_start and record.date_end and record.date_start > record.date_end:
-                raise ValidationError(self.env._('The quarter end date precedes its start date.'))
+                raise ValidationError(self.env._('The review end date precedes its start date.'))
 
     def _check_payroll_manager(self):
         if not self.env.su and not self.env.user.has_group('hr_payroll.group_hr_payroll_manager'):
@@ -219,6 +237,10 @@ class HrVariablePay(models.Model):
         if any(record.state != 'submitted' for record in self):
             raise UserError(self.env._('Only submitted records can be approved.'))
         for record in self:
+            if not record.date_start or not record.date_end:
+                raise UserError(self.env._('Set review start and end dates before approving variable pay.'))
+            if not record.payout_date:
+                raise UserError(self.env._('Set a payout date before approving variable pay.'))
             if not record.version_id:
                 raise UserError(self.env._(
                     'Set the contract on %s before approving it.', record.display_name))
@@ -237,6 +259,7 @@ class HrVariablePay(models.Model):
             raise UserError(self.env._(
                 'This record is attached to a payslip. Cancel that payslip first.'))
         self.write({'state': 'draft', 'approved_by_id': False, 'approval_date': False})
+        self._compute_quarterly_target()
 
     # ------------------------------------------------------------------
     # Payslip integration
@@ -247,7 +270,7 @@ class HrVariablePay(models.Model):
 
         ``payslip_id`` must be unset, or already this payslip: an amount that
         another payslip has claimed is never offered a second time, which is what
-        stops the same quarter being paid twice.
+        stops the same award being paid twice.
         """
         claimed = ['|', ('payslip_id', '=', False)]
         claimed += [('payslip_id', '=', payslip.id)] if payslip else [('payslip_id', '=', False)]
@@ -279,7 +302,7 @@ class HrVariablePay(models.Model):
     def _check_locked_fields(self, vals):
         """Freeze approved records, and paid ones except for a payroll manager.
 
-        Approval is a sign-off on an amount, so the amount and the quarter it
+        Approval is a sign-off on an amount, so the amount and the review period it
         belongs to stop being editable at that point. A payroll manager can still
         correct a paid record, because somebody has to be able to fix a genuine
         payroll error.
@@ -309,12 +332,12 @@ class HrVariablePay(models.Model):
                 vals['name'] = self.env['ir.sequence'].next_by_code('hr.variable.pay') or self.env._('New')
         return super().create(vals_list)
 
-    @api.depends('employee_id', 'financial_year_label', 'quarter')
+    @api.depends('employee_id', 'financial_year_label', 'quarter', 'name')
     def _compute_display_name(self):
         for record in self:
             record.display_name = '%s - %s %s' % (
                 record.employee_id.name or '', record.financial_year_label or '',
-                (record.quarter or '').upper())
+                record.quarter.upper() if record.quarter else record.name)
 
 
 class HrVersion(models.Model):
@@ -329,8 +352,7 @@ class HrVersion(models.Model):
     ft_annual_variable_pay = fields.Monetary(
         'Annual Variable Pay', tracking=True,
         groups='hr_payroll.group_hr_payroll_user',
-        help='Full-year variable pay target. Paid quarterly against performance, '
-             'never as a fixed monthly amount.')
+        help='Full-year variable pay target. Payout timing and amounts are approved separately based on performance.')
     ft_quarterly_variable_pay = fields.Monetary(
         'Quarterly Variable Pay Target', compute='_compute_ft_quarterly_variable_pay',
         store=True, groups='hr_payroll.group_hr_payroll_user',
@@ -479,7 +501,7 @@ class HrPayslip(models.Model):
         return result
 
     def action_payslip_cancel(self):
-        # Release the quarter so it can be paid on a corrected payslip.
+        # Release the award so it can be paid on a corrected payslip.
         released = self.ft_variable_pay_ids
         result = super().action_payslip_cancel()
         released.sudo().write({'state': 'approved', 'payslip_id': False})
