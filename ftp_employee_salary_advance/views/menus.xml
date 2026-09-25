@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <menuitem id="menu_salary_advance_root"
+            name="Salary Advances"
+            parent="hr_work_entry_enterprise.menu_hr_payroll_root"
+            sequence="75"
+            groups="base.group_user"/>
+
+  <menuitem id="menu_salary_advance_all"
+            name="Salary Advances"
+            parent="menu_salary_advance_root"
+            action="action_salary_advance"
+            sequence="10"
+            groups="hr.group_hr_user"/>
+
+  <menuitem id="menu_salary_advance_mine"
+            name="My Salary Advances"
+            parent="menu_salary_advance_root"
+            action="action_my_salary_advance"
+            sequence="20"
+            groups="base.group_user"/>
+</odoo>

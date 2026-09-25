@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <data noupdate="1">
+    <!-- Indian context. The employee is created here rather than reused so the
+         demo never depends on whichever employees a database happens to have. -->
+    <record id="demo_employee_rahul" model="hr.employee">
+      <field name="name">Rahul Nair</field>
+      <field name="company_id" ref="base.main_company"/>
+      <field name="date_version" eval="(DateTime.today() - relativedelta(months=6)).strftime('%Y-%m-%d')"/>
+      <field name="contract_date_start" eval="(DateTime.today() - relativedelta(months=6)).strftime('%Y-%m-%d')"/>
+      <field name="wage">50000</field>
+    </record>
+
+    <!-- 60,000 at 5,000 a month -> 12 equal installments. -->
+    <record id="demo_advance_60k" model="hr.salary.advance">
+      <field name="employee_id" ref="demo_employee_rahul"/>
+      <field name="advance_date" eval="DateTime.today().strftime('%Y-%m-%d')"/>
+      <field name="request_date" eval="DateTime.today().strftime('%Y-%m-%d')"/>
+      <field name="advance_amount">60000</field>
+      <field name="monthly_installment">5000</field>
+      <field name="remarks">Medical expenses.</field>
+    </record>
+
+    <!-- 52,000 at 5,000 a month -> ten of 5,000 and a final one of 2,000. -->
+    <record id="demo_advance_52k" model="hr.salary.advance">
+      <field name="employee_id" ref="demo_employee_rahul"/>
+      <field name="advance_date" eval="DateTime.today().strftime('%Y-%m-%d')"/>
+      <field name="request_date" eval="DateTime.today().strftime('%Y-%m-%d')"/>
+      <field name="advance_amount">52000</field>
+      <field name="monthly_installment">5000</field>
+      <field name="remarks">Home repair. Final installment is the remainder.</field>
+    </record>
+  </data>
+</odoo>

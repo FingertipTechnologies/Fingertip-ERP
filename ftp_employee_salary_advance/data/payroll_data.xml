@@ -1,0 +1,29 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <data noupdate="1">
+    <!-- struct_ids left empty on purpose: an input type with no structure is
+         available on every payslip. -->
+    <record id="input_type_salary_advance" model="hr.payslip.input.type">
+      <field name="name">Salary Advance Recovery</field>
+      <field name="code">SALARY_ADVANCE</field>
+      <field name="country_id" eval="False"/>
+    </record>
+
+    <!-- The rule lives on the default rule set so structures created later
+         inherit it; post_init_hook copies it onto the structures that already
+         exist, because hr.payslip only ever reads struct_id.rule_ids. The rule
+         is inert unless the input is present. -->
+    <record id="salary_rule_salary_advance" model="hr.salary.rule">
+      <field name="name">Salary Advance Recovery</field>
+      <field name="code">SALARY_ADVANCE</field>
+      <field name="category_id" ref="hr_payroll.DED"/>
+      <field name="sequence" eval="175"/>
+      <field name="condition_select">python</field>
+      <field name="condition_python">result = 'SALARY_ADVANCE' in inputs and inputs['SALARY_ADVANCE'].amount</field>
+      <field name="amount_select">code</field>
+      <field name="amount_python_compute">result = -inputs['SALARY_ADVANCE'].amount
+result_name = inputs['SALARY_ADVANCE'].name</field>
+      <field name="struct_id" ref="hr_payroll.default_structure"/>
+    </record>
+  </data>
+</odoo>

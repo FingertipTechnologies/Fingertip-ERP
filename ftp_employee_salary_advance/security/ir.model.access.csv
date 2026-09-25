@@ -1,0 +1,8 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_hr_salary_advance_employee,hr.salary.advance employee,model_hr_salary_advance,base.group_user,1,0,0,0
+access_hr_salary_advance_officer,hr.salary.advance officer,model_hr_salary_advance,hr.group_hr_user,1,1,1,0
+access_hr_salary_advance_manager,hr.salary.advance manager,model_hr_salary_advance,hr.group_hr_manager,1,1,1,1
+access_hr_salary_advance_installment_employee,hr.salary.advance.installment employee,model_hr_salary_advance_installment,base.group_user,1,0,0,0
+access_hr_salary_advance_installment_officer,hr.salary.advance.installment officer,model_hr_salary_advance_installment,hr.group_hr_user,1,1,1,0
+access_hr_salary_advance_installment_manager,hr.salary.advance.installment manager,model_hr_salary_advance_installment,hr.group_hr_manager,1,1,1,1
+access_hr_salary_advance_reject_officer,hr.salary.advance.reject officer,model_hr_salary_advance_reject,hr.group_hr_user,1,1,1,1

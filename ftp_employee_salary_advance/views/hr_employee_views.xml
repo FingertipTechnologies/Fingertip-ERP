@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <record id="view_employee_form_salary_advance" model="ir.ui.view">
+    <field name="name">hr.employee.form.salary.advance</field>
+    <field name="model">hr.employee</field>
+    <field name="inherit_id" ref="hr.view_employee_form"/>
+    <field name="arch" type="xml">
+      <button name="action_open_versions" position="before">
+        <button class="oe_stat_button" name="action_open_salary_advances"
+                type="object" icon="fa-money" groups="hr.group_hr_user"
+                invisible="not salary_advance_count">
+          <div class="o_stat_info">
+            <field name="salary_advance_count" class="o_stat_value"/>
+            <span class="o_stat_text">Salary Advances</span>
+            <span class="o_stat_text" invisible="not salary_advance_running_count">
+              <field name="salary_advance_running_count" class="oe_inline"/> running
+            </span>
+            <span class="o_stat_text" invisible="not salary_advance_balance">
+              <field name="salary_advance_balance" class="oe_inline"
+                     widget="monetary" options="{'currency_field': 'currency_id'}"/> left
+            </span>
+          </div>
+        </button>
+      </button>
+    </field>
+  </record>
+</odoo>

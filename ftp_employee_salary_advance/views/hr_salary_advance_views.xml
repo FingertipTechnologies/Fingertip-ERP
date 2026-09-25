@@ -1,0 +1,206 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <record id="view_salary_advance_form" model="ir.ui.view">
+    <field name="name">hr.salary.advance.form</field>
+    <field name="model">hr.salary.advance</field>
+    <field name="arch" type="xml">
+      <form string="Salary Advance">
+        <header>
+          <button name="action_submit" string="Submit" type="object"
+                  class="btn-primary" invisible="state != 'draft'"/>
+          <button name="action_approve" string="Approve" type="object"
+                  class="btn-primary" invisible="state != 'submitted'"
+                  groups="hr.group_hr_manager"/>
+          <button name="action_start_recovery" string="Start Recovery" type="object"
+                  class="btn-primary" invisible="state != 'approved'"/>
+          <button name="action_reject" string="Reject" type="object"
+                  invisible="state not in ('draft', 'submitted')"
+                  groups="hr.group_hr_manager"/>
+          <button name="action_cancel" string="Cancel" type="object"
+                  invisible="state in ('completed', 'cancelled', 'rejected')"
+                  groups="hr.group_hr_manager"/>
+          <button name="action_reset_to_draft" string="Reset to Draft" type="object"
+                  invisible="state not in ('rejected', 'cancelled')"
+                  groups="hr.group_hr_manager"/>
+          <field name="state" widget="statusbar"
+                 statusbar_visible="draft,submitted,approved,running,completed"/>
+        </header>
+        <sheet>
+          <div class="oe_title">
+            <h1><field name="name" readonly="1"/></h1>
+          </div>
+          <div class="alert alert-warning" role="alert"
+               invisible="state != 'rejected'">
+            Rejected by <field name="rejected_by" readonly="1" class="oe_inline"/>:
+            <field name="rejection_reason" readonly="1" class="oe_inline"/>
+          </div>
+          <group string="Advance Details">
+            <group>
+              <field name="employee_id" readonly="state != 'draft'"
+                     options="{'no_create': True}"/>
+              <field name="contract_id" readonly="1" options="{'no_open': True}"/>
+              <field name="department_id" invisible="1"/>
+              <field name="company_id" groups="base.group_multi_company" readonly="1"/>
+              <field name="currency_id" invisible="1"/>
+            </group>
+            <group>
+              <field name="request_date" readonly="state != 'draft'"/>
+              <field name="advance_date" readonly="state not in ('draft', 'submitted')"/>
+              <field name="advance_amount" readonly="state not in ('draft', 'submitted')"/>
+              <field name="monthly_installment"
+                     readonly="state not in ('draft', 'submitted')"/>
+              <field name="number_of_installments"
+                     readonly="state not in ('draft', 'submitted')"/>
+            </group>
+          </group>
+          <group string="Recovery Summary">
+            <group>
+              <field name="recovered_amount"/>
+              <field name="remaining_amount"/>
+            </group>
+            <group>
+              <field name="completion_date" invisible="not completion_date"/>
+            </group>
+          </group>
+          <group string="Approval Information"
+                 invisible="state in ('draft', 'submitted')">
+            <group>
+              <field name="approved_by"/>
+              <field name="approved_date"/>
+            </group>
+          </group>
+          <notebook>
+            <page string="Installment Schedule" name="installments">
+              <field name="installment_ids"
+                     readonly="state in ('completed', 'cancelled', 'rejected')">
+                <list editable="bottom" create="0" delete="0"
+                      decoration-success="state == 'deducted' or already_paid"
+                      decoration-muted="state == 'cancelled'">
+                  <field name="installment_no" readonly="1"/>
+                  <field name="installment_date"
+                         readonly="state == 'deducted' or already_paid or payslip_id"/>
+                  <field name="amount" readonly="1"/>
+                  <field name="already_paid" widget="boolean_toggle"
+                         readonly="state == 'deducted'"/>
+                  <field name="state" readonly="1"/>
+                  <field name="payslip_id" readonly="1"/>
+                  <field name="currency_id" column_invisible="1"/>
+                </list>
+              </field>
+            </page>
+            <page string="Remarks" name="remarks">
+              <field name="remarks" placeholder="Reason for the advance..."/>
+            </page>
+          </notebook>
+        </sheet>
+        <chatter/>
+      </form>
+    </field>
+  </record>
+
+  <record id="view_salary_advance_list" model="ir.ui.view">
+    <field name="name">hr.salary.advance.list</field>
+    <field name="model">hr.salary.advance</field>
+    <field name="arch" type="xml">
+      <list string="Salary Advances"
+            decoration-success="state == 'completed'"
+            decoration-muted="state in ('cancelled', 'rejected')"
+            decoration-info="state == 'running'">
+        <field name="name"/>
+        <field name="employee_id"/>
+        <field name="department_id" optional="show"/>
+        <field name="advance_date"/>
+        <field name="advance_amount" sum="Advance"/>
+        <field name="monthly_installment" optional="hide"/>
+        <field name="number_of_installments" optional="hide"/>
+        <field name="recovered_amount" sum="Recovered"/>
+        <field name="remaining_amount" sum="Remaining"/>
+        <field name="state" widget="badge"/>
+        <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+        <field name="currency_id" column_invisible="1"/>
+      </list>
+    </field>
+  </record>
+
+  <record id="view_salary_advance_pivot" model="ir.ui.view">
+    <field name="name">hr.salary.advance.pivot</field>
+    <field name="model">hr.salary.advance</field>
+    <field name="arch" type="xml">
+      <pivot string="Salary Advances">
+        <field name="employee_id" type="row"/>
+        <field name="state" type="col"/>
+        <field name="advance_amount" type="measure"/>
+        <field name="recovered_amount" type="measure"/>
+        <field name="remaining_amount" type="measure"/>
+      </pivot>
+    </field>
+  </record>
+
+  <record id="view_salary_advance_search" model="ir.ui.view">
+    <field name="name">hr.salary.advance.search</field>
+    <field name="model">hr.salary.advance</field>
+    <field name="arch" type="xml">
+      <search string="Salary Advances">
+        <field name="name"/>
+        <field name="employee_id"/>
+        <field name="department_id"/>
+        <field name="company_id" groups="base.group_multi_company"/>
+        <filter name="filter_draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+        <filter name="filter_submitted" string="Submitted" domain="[('state', '=', 'submitted')]"/>
+        <filter name="filter_approved" string="Approved" domain="[('state', '=', 'approved')]"/>
+        <filter name="filter_running" string="Running" domain="[('state', '=', 'running')]"/>
+        <filter name="filter_completed" string="Completed" domain="[('state', '=', 'completed')]"/>
+        <separator/>
+        <filter name="filter_outstanding" string="Outstanding"
+                domain="[('remaining_amount', '&gt;', 0), ('state', 'in', ['approved', 'running'])]"/>
+        <separator/>
+        <filter name="filter_advance_date" string="Advance Date" date="advance_date"/>
+        <group>
+          <filter name="group_employee" string="Employee" context="{'group_by': 'employee_id'}"/>
+          <filter name="group_department" string="Department" context="{'group_by': 'department_id'}"/>
+          <filter name="group_state" string="Status" context="{'group_by': 'state'}"/>
+          <filter name="group_company" string="Company" context="{'group_by': 'company_id'}"
+                  groups="base.group_multi_company"/>
+          <filter name="group_advance_date" string="Advance Date" context="{'group_by': 'advance_date'}"/>
+        </group>
+      </search>
+    </field>
+  </record>
+
+  <record id="action_salary_advance" model="ir.actions.act_window">
+    <field name="name">Salary Advances</field>
+    <field name="res_model">hr.salary.advance</field>
+    <field name="view_mode">list,form,pivot</field>
+    <field name="search_view_id" ref="view_salary_advance_search"/>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">Record a salary advance</p>
+      <p>Approve an advance and its installments are recovered automatically
+         from the employee's payslips until the balance reaches zero.</p>
+    </field>
+  </record>
+
+  <record id="action_my_salary_advance" model="ir.actions.act_window">
+    <field name="name">My Salary Advances</field>
+    <field name="res_model">hr.salary.advance</field>
+    <field name="view_mode">list,form</field>
+    <field name="domain">[('employee_id.user_id', '=', uid)]</field>
+    <field name="search_view_id" ref="view_salary_advance_search"/>
+  </record>
+
+  <record id="view_salary_advance_reject_form" model="ir.ui.view">
+    <field name="name">hr.salary.advance.reject.form</field>
+    <field name="model">hr.salary.advance.reject</field>
+    <field name="arch" type="xml">
+      <form string="Reject Salary Advance">
+        <group>
+          <field name="advance_id" invisible="1"/>
+          <field name="reason" placeholder="Why is this advance being rejected?"/>
+        </group>
+        <footer>
+          <button name="action_confirm" string="Reject" type="object" class="btn-primary"/>
+          <button string="Discard" class="btn-secondary" special="cancel"/>
+        </footer>
+      </form>
+    </field>
+  </record>
+</odoo>
