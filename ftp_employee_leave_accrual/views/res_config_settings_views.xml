@@ -1,0 +1,102 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <!-- Odoo 19's Time Off app has no settings page of its own, so the policy
+       lives in the Employees settings app and Time Off > Configuration gets a
+       menu entry that opens it. -->
+  <record id="res_config_settings_view_form_leave_policy" model="ir.ui.view">
+    <field name="name">res.config.settings.form.leave.policy</field>
+    <field name="model">res.config.settings</field>
+    <field name="inherit_id" ref="hr.res_config_settings_view_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//app[@name='hr']" position="inside">
+        <block title="Company Leave Policy" name="ftp_leave_policy_container">
+          <setting id="ftp_leave_accrual_setting"
+                   title="Monthly casual and sick leave accrual for confirmed employees"
+                   string="Automatic Leave Allocation"
+                   help="Give every confirmed employee a casual and sick leave accrual automatically. Odoo's accrual plan does the monthly arithmetic.">
+            <field name="ftp_leave_accrual_enabled"/>
+            <div class="content-group mt16" invisible="not ftp_leave_accrual_enabled">
+              <div class="row">
+                <label for="ftp_eligible_contract_type_ids" string="Eligible Employee Status" class="col-lg-5 o_light_label"/>
+                <field name="ftp_eligible_contract_type_ids" widget="many2many_tags"
+                       options="{'no_create': True}"/>
+              </div>
+              <div class="row">
+                <label for="ftp_casual_leave_type_id" class="col-lg-5 o_light_label"/>
+                <field name="ftp_casual_leave_type_id"/>
+              </div>
+              <div class="row">
+                <label for="ftp_casual_accrual_plan_id" class="col-lg-5 o_light_label"/>
+                <field name="ftp_casual_accrual_plan_id"/>
+              </div>
+              <div class="row">
+                <label for="ftp_casual_monthly_accrual" class="col-lg-5 o_light_label"/>
+                <field name="ftp_casual_monthly_accrual"/>
+              </div>
+              <div class="row">
+                <label for="ftp_casual_max_carryover" class="col-lg-5 o_light_label"/>
+                <field name="ftp_casual_max_carryover"/>
+              </div>
+              <div class="row">
+                <label for="ftp_sick_leave_type_id" class="col-lg-5 o_light_label"/>
+                <field name="ftp_sick_leave_type_id"/>
+              </div>
+              <div class="row">
+                <label for="ftp_sick_accrual_plan_id" class="col-lg-5 o_light_label"/>
+                <field name="ftp_sick_accrual_plan_id"/>
+              </div>
+              <div class="row">
+                <label for="ftp_sick_monthly_accrual" class="col-lg-5 o_light_label"/>
+                <field name="ftp_sick_monthly_accrual"/>
+              </div>
+              <!-- Service rule first: it governs both leave types, and
+                   sitting under Paternity made it look paternity-only. -->
+              <div class="row mt16">
+                <label for="ftp_parental_min_service_years" class="col-lg-5 o_light_label"/>
+                <field name="ftp_parental_min_service_years"/>
+              </div>
+              <div class="row">
+                <label for="ftp_maternity_leave_type_id" class="col-lg-5 o_light_label"/>
+                <field name="ftp_maternity_leave_type_id"/>
+              </div>
+              <div class="row">
+                <label for="ftp_maternity_days" class="col-lg-5 o_light_label"/>
+                <field name="ftp_maternity_days"/>
+              </div>
+              <div class="row">
+                <label for="ftp_paternity_leave_type_id" class="col-lg-5 o_light_label"/>
+                <field name="ftp_paternity_leave_type_id"/>
+              </div>
+              <div class="row">
+                <label for="ftp_paternity_days" class="col-lg-5 o_light_label"/>
+                <field name="ftp_paternity_days"/>
+              </div>
+              <div class="mt8">
+                <button name="action_setup_leave_policy" type="object"
+                        string="Create Missing Types and Plans"
+                        class="btn-link" icon="fa-cogs"/>
+                <button name="action_generate_missing_allocations" type="object"
+                        string="Generate Missing Allocations"
+                        class="btn-link" icon="fa-refresh"/>
+              </div>
+            </div>
+          </setting>
+        </block>
+      </xpath>
+    </field>
+  </record>
+
+  <record id="action_leave_policy_settings" model="ir.actions.act_window">
+    <field name="name">Company Leave Policy</field>
+    <field name="res_model">res.config.settings</field>
+    <field name="view_mode">form</field>
+    <field name="context">{'module': 'hr', 'bin_size': False}</field>
+  </record>
+
+  <menuitem id="menu_leave_policy_settings"
+            name="Company Leave Policy"
+            parent="hr_holidays.menu_hr_holidays_configuration"
+            action="action_leave_policy_settings"
+            sequence="90"
+            groups="hr.group_hr_manager"/>
+</odoo>

@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <data noupdate="1">
+    <!-- The three statuses from the test scenarios, Indian context. Only
+         Rahul is Confirmed once his status is changed; the other two must
+         never receive an allocation. -->
+    <record id="demo_employee_rahul" model="hr.employee">
+      <field name="name">Rahul Nair</field>
+      <field name="company_id" ref="base.main_company"/>
+      <field name="date_version" eval="(DateTime.today() - relativedelta(months=8)).strftime('%Y-%m-%d')"/>
+      <field name="contract_date_start" eval="(DateTime.today() - relativedelta(months=8)).strftime('%Y-%m-%d')"/>
+      <field name="contract_type_id" ref="l10n_in_hr_payroll.l10n_in_contract_type_probation"/>
+    </record>
+
+    <record id="demo_employee_anjali" model="hr.employee">
+      <field name="name">Anjali Menon</field>
+      <field name="company_id" ref="base.main_company"/>
+      <field name="date_version" eval="(DateTime.today() - relativedelta(months=4)).strftime('%Y-%m-%d')"/>
+      <field name="contract_date_start" eval="(DateTime.today() - relativedelta(months=4)).strftime('%Y-%m-%d')"/>
+      <field name="contract_type_id" ref="ftp_employee_leave_accrual.contract_type_consultant"/>
+    </record>
+
+    <record id="demo_employee_trainee" model="hr.employee">
+      <field name="name">Divya Pillai</field>
+      <field name="company_id" ref="base.main_company"/>
+      <field name="date_version" eval="(DateTime.today() - relativedelta(months=3)).strftime('%Y-%m-%d')"/>
+      <field name="contract_date_start" eval="(DateTime.today() - relativedelta(months=3)).strftime('%Y-%m-%d')"/>
+      <field name="contract_type_id" ref="ftp_employee_leave_accrual.contract_type_trainee"/>
+    </record>
+
+    <record id="demo_employee_arun" model="hr.employee">
+      <field name="name">Arun Kumar</field>
+      <field name="company_id" ref="base.main_company"/>
+      <field name="date_version" eval="(DateTime.today() - relativedelta(months=2)).strftime('%Y-%m-%d')"/>
+      <field name="contract_date_start" eval="(DateTime.today() - relativedelta(months=2)).strftime('%Y-%m-%d')"/>
+      <field name="contract_type_id" ref="hr.contract_type_intern"/>
+    </record>
+  </data>
+</odoo>
