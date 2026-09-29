@@ -8,5 +8,5 @@ class ResCompany(models.Model):
     ftp_tds_auto_enabled = fields.Boolean(
         string='Automatic TDS Computation', default=True,
         help="Work out each employee's monthly TDS from projected annual "
-             "gross pay, new regime. Switch off to go back to entering TDS "
+             "gross pay, selected tax regime. Switch off to go back to entering TDS "
              "by hand for everyone.")

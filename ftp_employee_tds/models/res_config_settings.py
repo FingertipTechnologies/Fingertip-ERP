@@ -10,7 +10,8 @@ class ResConfigSettings(models.TransientModel):
 
     def action_ftp_recompute_all_tds(self):
         self.ensure_one()
-        count = self.env['hr.version']._cron_update_tds()
+        versions = self.env['hr.employee'].search([('company_id', '=', self.company_id.id)]).version_id
+        count = len(versions._ftp_apply_tds())
         return {
             'type': 'ir.actions.client',
             'tag': 'display_notification',

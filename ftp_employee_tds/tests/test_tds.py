@@ -2,11 +2,11 @@
 """TDS arithmetic, projection and spreading."""
 from datetime import date
 
-from odoo import Command, fields
+from odoo import fields
 from odoo.tests import TransactionCase, tagged
 
 from odoo.addons.ftp_employee_tds.models.tds_slabs import (
-    annual_tax_on, standard_deduction,
+    annual_tax_on, standard_deduction, round_statutory_amount,
 )
 
 
@@ -43,23 +43,13 @@ class TestTds(TransactionCase):
         return employee, version
 
     # ------------------------------------------------------------------
-    # The arithmetic, against Odoo's own wizard
+    # The arithmetic, against hand-worked statutory examples
     # ------------------------------------------------------------------
     def test_01_slab_maths_is_right(self):
-        """Hand-worked figures against the shipped slab chart.
-
-        Slabs 0/3/6/9/12/15L at 0/5/10/15/20/30%, standard deduction 50,000,
-        87A threshold 7,00,000, 4% cess. Checked by hand rather than against
-        l10n_in's wizard, whose totals are computed from a net-pay projection.
-        """
+        """FY 2026-27 normal salary income, 75,000 standard deduction."""
         deduction = standard_deduction(self.env, self.today)
-        self.assertAlmostEqual(deduction, 50000, 2)
-        cases = {
-            # gross: expected total tax
-            400000: 0.0,        # taxable 3.5L -> 2,500 slab tax, fully rebated
-            800000: 31200.0,    # taxable 7.5L -> 30,000 + 4% cess
-            1400000: 124800.0,  # taxable 13.5L -> 120,000 + 4% cess
-        }
+        self.assertAlmostEqual(deduction, 75000, 2)
+        cases = {400000: 0.0, 800000: 0.0, 1400000: 81900.0, 2400000: 292500.0}
         for gross, expected in cases.items():
             with self.subTest(gross=gross):
                 result = annual_tax_on(self.env, gross - deduction, self.today)
@@ -95,14 +85,14 @@ class TestTds(TransactionCase):
 
     def test_05_spreads_over_remaining_months(self):
         """Starting in month 10 spreads the year's tax over 3, not 12."""
-        employee, version = self._employee(100000)
+        employee, version = self._employee(200000)
         april = version._ftp_tds_breakdown(date(2026, 4, 15))
         january = version._ftp_tds_breakdown(date(2027, 1, 15))
         self.assertEqual(april['months_remaining'], 12)
         self.assertEqual(january['months_remaining'], 3)
         # The year's income is the same either way: employed all twelve months.
-        self.assertAlmostEqual(april['projected_gross'], 1200000, 2)
-        self.assertAlmostEqual(january['projected_gross'], 1200000, 2)
+        self.assertAlmostEqual(april['projected_gross'], 2400000, 2)
+        self.assertAlmostEqual(january['projected_gross'], 2400000, 2)
         # Same tax, fewer months left, so each instalment is larger.
         self.assertAlmostEqual(january['total_tax'], april['total_tax'], 2)
         self.assertGreater(january['monthly_tds'], april['monthly_tds'])
@@ -136,14 +126,14 @@ class TestTds(TransactionCase):
 
     def test_07_applies_to_the_field_the_rule_reads(self):
         employee, version = self._employee(200000)
-        self.assertAlmostEqual(version.l10n_in_tds, 0.0, 2)
+        self.assertGreater(version.l10n_in_tds, 0.0)
         version._ftp_apply_tds(self.today)
         self.assertGreater(version.l10n_in_tds, 0.0)
         expected = version._ftp_tds_breakdown(self.today)['monthly_tds']
         self.assertAlmostEqual(version.l10n_in_tds, expected, 2)
 
     def test_08_opt_out_is_left_alone(self):
-        """Old-regime employees keep whatever HR typed."""
+        """Manual overrides keep whatever HR typed."""
         employee, version = self._employee(200000)
         version.ftp_tds_auto = False
         version.l10n_in_tds = 4321.0
@@ -153,6 +143,7 @@ class TestTds(TransactionCase):
     def test_09_company_switch_stops_everything(self):
         employee, version = self._employee(200000)
         self.company.ftp_tds_auto_enabled = False
+        version.l10n_in_tds = 0
         version._ftp_apply_tds(self.today)
         self.assertAlmostEqual(version.l10n_in_tds, 0.0, 2)
 
@@ -163,6 +154,7 @@ class TestTds(TransactionCase):
 
     def test_11_cron_runs_and_is_idempotent(self):
         employee, version = self._employee(200000)
+        version.l10n_in_tds = 0
         first = self.env['hr.version']._cron_update_tds()
         self.assertGreaterEqual(first, 1)
         value = version.l10n_in_tds
@@ -178,3 +170,148 @@ class TestTds(TransactionCase):
                        'l10n_in_basic_salary_amount': 250000})
         version._ftp_apply_tds(self.today)
         self.assertGreater(version.l10n_in_tds, before)
+
+    def test_13_regime_and_approved_deductions(self):
+        employee, version = self._employee(200000)
+        version.ftp_tax_regime = 'old'
+        figures = version._ftp_tds_breakdown(self.today)
+        self.assertAlmostEqual(figures['total_tax'], 538200, 2)
+        version.write({'ftp_tds_approved_deductions': 150000, 'ftp_tds_deduction_year': 2026})
+        self.assertAlmostEqual(version._ftp_tds_breakdown(self.today)['total_tax'], 491400, 2)
+        version.ftp_tds_deduction_year = 2025
+        self.assertEqual(version._ftp_tds_breakdown(self.today)['approved_deductions'], 0)
+
+    def test_14_residency_age_and_marginal_relief(self):
+        self.assertEqual(annual_tax_on(self.env, 1200000, self.today)['total_tax'], 0)
+        relief = annual_tax_on(self.env, 1200100, self.today)
+        self.assertAlmostEqual(relief['unrounded_total_tax'], 104)
+        self.assertEqual(relief['total_tax'], 100)
+        self.assertAlmostEqual(annual_tax_on(self.env, 500000, self.today, 'old', False)['total_tax'], 13000)
+        self.assertEqual(annual_tax_on(self.env, 500000, self.today, 'old', True, 80)['slab_tax'], 0)
+        for regime in ('old', 'new'):
+            for boundary in (5000000, 10000000, 20000000):
+                base = annual_tax_on(self.env, boundary, self.today, regime)['unrounded_total_tax']
+                above = annual_tax_on(self.env, boundary + 100, self.today, regime)['unrounded_total_tax']
+                self.assertAlmostEqual(above - base, 104, 2)
+
+    def test_15_save_automatically_recomputes(self):
+        employee, version = self._employee(200000)
+        self.assertGreater(version.l10n_in_tds, 0)
+        before = version.l10n_in_tds
+        version.write({'wage': 300000, 'l10n_in_basic_salary_amount': 300000})
+        self.assertGreater(version.l10n_in_tds, before)
+        version.ftp_tds_auto = False
+        version.l10n_in_tds = 1234
+        version.write({'wage': 200000, 'l10n_in_basic_salary_amount': 200000})
+        self.assertEqual(version.l10n_in_tds, 1234)
+        version.ftp_tds_auto = True
+        self.assertNotEqual(version.l10n_in_tds, 1234)
+
+    def test_16_payslip_recomputes_for_its_own_month(self):
+        employee, version = self._employee(200000)
+        structure = self.env.ref('l10n_in_hr_payroll.hr_payroll_structure_in_employee_salary')
+        version.structure_type_id = structure.type_id
+        slip = self.env['hr.payslip'].create({
+            'name': 'TDS April integration test', 'employee_id': employee.id,
+            'version_id': version.id, 'struct_id': structure.id,
+            'date_from': date(2026, 4, 1), 'date_to': date(2026, 4, 30),
+            'company_id': self.company.id,
+        })
+        version.l10n_in_tds = 1
+        slip.compute_sheet()
+        tds = slip.line_ids.filtered(lambda line: line.code == 'TDS')
+        self.assertAlmostEqual(sum(tds.mapped('total')), -24375, 2)
+        slip.compute_sheet()
+        self.assertAlmostEqual(sum(slip.line_ids.filtered(lambda line: line.code == 'TDS').mapped('total')), -24375, 2)
+
+    def test_17_regime_change_clears_old_exemptions(self):
+        employee, version = self._employee(200000)
+        version.write({'ftp_tax_regime': 'old', 'ftp_tds_approved_deductions': 150000})
+        version.ftp_tax_regime = 'new'
+        self.assertEqual(version.ftp_tds_approved_deductions, 0)
+
+    def test_18_historical_rates(self):
+        self.assertEqual(standard_deduction(self.env, date(2024, 3, 31)), 50000)
+        self.assertEqual(standard_deduction(self.env, date(2024, 4, 1)), 75000)
+        self.assertAlmostEqual(annual_tax_on(self.env, 1350000, date(2024, 3, 31))['total_tax'], 124800)
+        self.assertAlmostEqual(annual_tax_on(self.env, 1325000, date(2024, 4, 1))['total_tax'], 109200)
+
+    def test_19_company_workbook_example(self):
+        """FY-2026-27!O52:P113: gross 37.2L, approved old deductions 3.524L.
+
+        PT 2,400 + capped 80C 150,000 + eligible house-property loss 200,000.
+        Workbook tax is 840,091 old / 700,440 new; statutory rounding makes
+        old-regime annual liability 840,090, not the workbook's whole rupee.
+        """
+        employee, version = self._employee(310000)
+        version.write({'ftp_tax_regime': 'old', 'ftp_tds_deduction_year': 2026,
+                       'ftp_tds_approved_deductions': 352400})
+        old = version._ftp_tds_breakdown(self.today)
+        self.assertEqual(old['projected_gross'], 3720000)
+        self.assertEqual(old['taxable_income'], 3317600)
+        self.assertEqual(old['slab_tax'], 807780)
+        self.assertAlmostEqual(old['unrounded_total_tax'], 840091.2)
+        self.assertEqual(old['total_tax'], 840090)
+        version.ftp_tax_regime = 'new'
+        new = version._ftp_tds_breakdown(self.today)
+        self.assertEqual(new['taxable_income'], 3645000)
+        self.assertEqual(new['slab_tax'], 673500)
+        self.assertEqual(new['total_tax'], 700440)
+        self.assertEqual(new['monthly_tds'], 58370)
+
+    def test_20_old_regime_has_no_rebate_above_five_lakh(self):
+        self.assertEqual(annual_tax_on(self.env, 500000, self.today, 'old')['total_tax'], 0)
+        result = annual_tax_on(self.env, 500100, self.today, 'old')
+        self.assertEqual(result['rebate'], 0)
+        self.assertEqual(result['slab_tax'], 12520)
+        self.assertEqual(result['total_tax'], 13020)
+
+    def test_21_rounding_near_rebate_thresholds(self):
+        for amount, expected in [(104.99, 100), (105, 110), (125, 130),
+                                 (0, 0), (-100, 0), (840091.2, 840090)]:
+            with self.subTest(amount=amount):
+                self.assertEqual(round_statutory_amount(amount), expected)
+        for regime, threshold in [('old', 500000), ('new', 1200000)]:
+            below = annual_tax_on(self.env, threshold + 4.99, self.today, regime)
+            above = annual_tax_on(self.env, threshold + 5, self.today, regime)
+            self.assertEqual(below['taxable_income'], threshold)
+            self.assertEqual(below['total_tax'], 0)
+            self.assertEqual(above['taxable_income'], threshold + 10)
+            self.assertGreater(above['total_tax'], 0)
+
+    def test_22_new_regime_surcharge_does_not_disappear_above_fifty_crore(self):
+        # The company's P111 formula has a missing final branch at 50 crore.
+        tax = annual_tax_on(self.env, 500000100, self.today)
+        self.assertAlmostEqual(tax['surcharge'], tax['tax_after_rebate'] * .25)
+        self.assertEqual(tax['total_tax'], 194454040)
+
+    def test_23_prior_paid_tds_reduces_remaining_deduction(self):
+        employee, version = self._employee(310000)
+        version.write({'ftp_tax_regime': 'old', 'ftp_tds_deduction_year': 2026,
+                       'ftp_tds_approved_deductions': 352400})
+        structure = self.env.ref('l10n_in_hr_payroll.hr_payroll_structure_in_employee_salary')
+        version.structure_type_id = structure.type_id
+        slip = self.env['hr.payslip'].create({
+            'name': 'TDS prior-month credit test', 'employee_id': employee.id,
+            'version_id': version.id, 'struct_id': structure.id,
+            'date_from': date(2026, 4, 1), 'date_to': date(2026, 4, 30),
+            'company_id': self.company.id,
+        })
+        slip.compute_sheet()
+        gross = slip.line_ids.filtered(lambda line: line.code == 'GROSS')
+        gross.write({'amount': 310000, 'quantity': 1, 'rate': 100})
+        tds = slip.line_ids.filtered(lambda line: line.code == 'TDS')
+        tds.write({'amount': -63000, 'quantity': 1, 'rate': 100})
+        # Mark only this transaction-scoped fixture final; no payment/posting.
+        slip.state = 'validated'
+        may = version._ftp_tds_breakdown(date(2026, 5, 1))
+        self.assertEqual(may['projected_gross'], 3720000)
+        self.assertEqual(may['tds_already_deducted'], 63000)
+        self.assertEqual(may['months_remaining'], 11)
+        self.assertEqual(may['monthly_tds'], 70644.55)
+        # Later or current-month payslips must not change a historical estimate.
+        april = version._ftp_tds_breakdown(self.today)
+        self.assertEqual(april['tds_already_deducted'], 0)
+        self.assertEqual(april['months_covered_by_payslips'], 0)
+        tds.amount = -900000
+        self.assertEqual(version._ftp_tds_breakdown(date(2026, 5, 1))['monthly_tds'], 0)

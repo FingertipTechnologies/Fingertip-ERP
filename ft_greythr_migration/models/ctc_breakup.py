@@ -98,8 +98,13 @@ class HrVersion(models.Model):
     ft_annual_gross = fields.Monetary(
         'Gross Total (Yearly)', compute='_compute_ft_ctc_totals', groups=PAYROLL_GROUP,
         help='Monthly gross salary x 12. Also shown as Fixed Pay, which it equals.')
+    ft_monthly_variable_pay = fields.Monetary(
+        'Variable Pay (Monthly)', compute='_compute_ft_ctc_totals', groups=PAYROLL_GROUP,
+        help='Annual variable pay target divided by twelve. A CTC figure only: the '
+             'actual payouts are approved separately on performance.')
     ft_monthly_ctc = fields.Monetary(
-        'Total CTC (Monthly)', compute='_compute_ft_ctc_totals', groups=PAYROLL_GROUP)
+        'Total CTC (Monthly)', compute='_compute_ft_ctc_totals', groups=PAYROLL_GROUP,
+        help='Gross salary plus employer costs plus one twelfth of the annual variable pay.')
     ft_annual_ctc = fields.Monetary(
         'Total CTC (Yearly)', compute='_compute_ft_ctc_totals', groups=PAYROLL_GROUP,
         help='Gross salary plus employer costs plus the annual variable pay target.')
@@ -157,12 +162,15 @@ class HrVersion(models.Model):
             deductions = sum((version[f] or 0.0) for f in ANNUAL_DEDUCTIONS.values())
             deductions += version.ft_monthly_professional_tax
 
+            # Variable pay is held as an annual target. Both CTC totals carry it,
+            # the monthly one as a twelfth, so the two columns agree. It stays out
+            # of the fixed breakup, deductions and net pay: the real payouts are
+            # approved quarterly on performance (hr.variable.pay).
+            monthly_variable = (version.ft_annual_variable_pay or 0.0) / 12.0
             version.ft_annual_gross = gross * 12
-            # Variable pay is already an annual figure and is deliberately NOT
-            # divided into the monthly CTC: it is paid quarterly on performance,
-            # which is the whole point of hr.variable.pay.
+            version.ft_monthly_variable_pay = monthly_variable
             version.ft_annual_ctc = (gross + employer) * 12 + version.ft_annual_variable_pay
-            version.ft_monthly_ctc = gross + employer
+            version.ft_monthly_ctc = gross + employer + monthly_variable
             version.ft_monthly_total_deductions = deductions
             version.ft_annual_total_deductions = deductions * 12
             version.ft_monthly_net_payable = gross - deductions
@@ -207,6 +215,7 @@ class HrEmployee(models.Model):
     ft_monthly_professional_tax = _related('ft_monthly_professional_tax')
     ft_annual_professional_tax = _related('ft_annual_professional_tax')
     ft_annual_gross = _related('ft_annual_gross')
+    ft_monthly_variable_pay = _related('ft_monthly_variable_pay')
     ft_monthly_ctc = _related('ft_monthly_ctc')
     ft_annual_ctc = _related('ft_annual_ctc')
     ft_monthly_total_deductions = _related('ft_monthly_total_deductions')

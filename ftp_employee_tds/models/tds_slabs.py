@@ -1,77 +1,77 @@
-# -*- coding: utf-8 -*-
-"""The new-regime tax arithmetic, kept deliberately separate.
+"""Indian salary-income tax, FY 2023-24 through FY 2026-27.
 
-Every figure comes from Odoo's own ``hr.rule.parameter`` records -- the slab
-chart, standard deduction, 87A rebate threshold, surcharge bands and the
-marginal-relief table -- so nothing is hardcoded and a new financial year is a
-data change, not a code change. The steps mirror l10n_in_hr_payroll's TDS
-wizard exactly, so the two agree on any given taxable income.
-
-What this does NOT do is the old regime: no 80C, no HRA exemption, no
-declarations. Employees on the old regime should have automatic TDS switched
-off on their record and their figure entered by hand.
+Sources and scope are documented in ../README.md. Special-rate income is
+not supported. Surcharge relief is derived from the applicable slabs, never
+from Odoo's outdated hard-coded threshold-tax table.
 """
+from odoo.exceptions import ValidationError
 
 
-def annual_tax_on(env, taxable_income, date):
-    """Slab tax, less 87A rebate, plus surcharge and 4% cess."""
-    parameters = env['hr.rule.parameter']
+def round_statutory_amount(amount):
+    """Ignore paise, then round to the nearest Rs 10, with five upwards.
 
-    def parameter(code):
-        return parameters._get_parameter_from_code(code, date=date)
+    Sections 288A/288B (1961 Act), continued in section 516 (2025 Act).
+    Do not use Python's round(), which rounds exact ties to even.
+    """
+    return float(((int(max(amount, 0)) + 5) // 10) * 10)
 
-    slabs = parameter('l10n_in_tds_rate_chart')
-    surcharge_bands = parameter('l10n_in_surcharge_rate')
-    min_income_surcharge = parameter('l10n_in_min_income_surcharge')
-    min_income_rebate = parameter('l10n_in_min_income_tax_rebate')
 
-    taxable_income = max(taxable_income, 0.0)
+def _rules(date, regime, resident=True, age=0):
+    year = date.year - (date.month < 4)
+    if year not in (2023, 2024, 2025, 2026):
+        raise ValidationError('Automatic TDS supports FY 2023-24 through FY 2026-27. '
+                              'Update the tax rules or switch to manual TDS for this year.')
+    if regime == 'old':
+        exemption = 500000 if resident and age >= 80 else 300000 if resident and age >= 60 else 250000
+        return [(exemption, 0), (500000, .05), (1000000, .20), (float('inf'), .30)], 50000, 500000, 12500
+    if year >= 2025:
+        return [(400000, 0), (800000, .05), (1200000, .10), (1600000, .15),
+                (2000000, .20), (2400000, .25), (float('inf'), .30)], 75000, 1200000, 60000
+    if year == 2024:
+        return [(300000, 0), (700000, .05), (1000000, .10), (1200000, .15),
+                (1500000, .20), (float('inf'), .30)], 75000, 700000, 25000
+    return [(300000, 0), (600000, .05), (900000, .10), (1200000, .15),
+            (1500000, .20), (float('inf'), .30)], 50000, 700000, 25000
 
-    slab_tax = 0
-    for rate, (lower, upper) in slabs:
-        if taxable_income <= lower:
-            break
-        slab_tax += round((min(taxable_income, float(upper)) - lower) * rate)
 
-    # Section 87A, with marginal relief just above the threshold.
-    if taxable_income >= min_income_rebate:
-        marginal_income = taxable_income - min_income_rebate
-        rebate = max(slab_tax - marginal_income, 0)
-    else:
-        rebate = slab_tax
+def annual_tax_on(env, taxable_income, date, regime='new', resident=True, age=0):
+    """Normal salary income only; rebate, marginal relief, surcharge and cess."""
+    slabs, _, threshold, rebate_cap = _rules(date, regime, resident, age)
+    taxable_income = round_statutory_amount(taxable_income)
+
+    def slab_tax_at(income):
+        total, lower = 0.0, 0.0
+        for upper, rate in slabs:
+            total += max(min(income, upper) - lower, 0) * rate
+            lower = upper
+        return total
+
+    slab_tax = slab_tax_at(taxable_income)
+    rebate = 0.0
+    if resident:
+        if taxable_income <= threshold:
+            rebate = min(slab_tax, rebate_cap)
+        elif regime == 'new':
+            rebate = max(slab_tax - (taxable_income - threshold), 0)
     tax_after_rebate = slab_tax - rebate
-
-    surcharge = 0.0
-    if taxable_income > min_income_surcharge:
-        for rate, band in surcharge_bands:
-            if taxable_income <= float(band[1]):
-                surcharge = tax_after_rebate * rate
-                break
-        # Marginal relief: the extra tax may not exceed the extra income.
-        relief_table = parameter('l10n_in_max_surcharge_tax_rate')
-        max_income, max_tax, max_surcharge = 0, 0, 0
-        for income, tax, surcharge_rate in relief_table:
-            if taxable_income <= income:
-                break
-            max_income, max_tax, max_surcharge = income, tax, surcharge_rate
-        excess_income = taxable_income - max_income
-        excess_tax = (tax_after_rebate + surcharge) - (max_tax + max_surcharge)
-        if excess_tax - excess_income > 0:
-            surcharge = (max_tax + max_surcharge + taxable_income
-                         - max_income - tax_after_rebate)
-
-    cess = (tax_after_rebate + surcharge) * 0.04
-    return {
-        'taxable_income': taxable_income,
-        'slab_tax': slab_tax,
-        'rebate': rebate,
-        'tax_after_rebate': tax_after_rebate,
-        'surcharge': surcharge,
-        'cess': cess,
-        'total_tax': tax_after_rebate + surcharge + cess,
-    }
+    bands = [(5000000, .10), (10000000, .15), (20000000, .25)]
+    if regime == 'old':
+        bands.append((50000000, .37))
+    rate, boundary, previous_rate = 0, 0, 0
+    for lower, next_rate in bands:
+        if taxable_income > lower:
+            boundary, previous_rate, rate = lower, rate, next_rate
+    surcharge = tax_after_rebate * rate
+    if rate:
+        ceiling = slab_tax_at(boundary) * (1 + previous_rate) + taxable_income - boundary
+        surcharge = max(min(surcharge, ceiling - tax_after_rebate), 0)
+    cess = (tax_after_rebate + surcharge) * .04
+    unrounded_total_tax = tax_after_rebate + surcharge + cess
+    return dict(taxable_income=taxable_income, slab_tax=slab_tax, rebate=rebate,
+                tax_after_rebate=tax_after_rebate, surcharge=surcharge, cess=cess,
+                unrounded_total_tax=unrounded_total_tax,
+                total_tax=round_statutory_amount(unrounded_total_tax))
 
 
-def standard_deduction(env, date):
-    return env['hr.rule.parameter']._get_parameter_from_code(
-        'l10n_in_standard_deduction', date=date) or 0.0
+def standard_deduction(env, date, regime='new'):
+    return _rules(date, regime)[1]

@@ -20,6 +20,7 @@ import logging
 from dateutil.relativedelta import relativedelta
 
 from odoo import _, api, fields, models
+from odoo.exceptions import ValidationError
 
 from .tds_slabs import annual_tax_on, standard_deduction
 
@@ -35,9 +36,49 @@ class HrVersion(models.Model):
     ftp_tds_auto = fields.Boolean(
         string='Automatic TDS', default=True,
         groups='hr_payroll.group_hr_payroll_user', tracking=True,
-        help="Work out TDS every month and write it to the TDS Deduction "
-             "field. Switch off for anyone on the old regime or with a figure "
-             "agreed outside Odoo, and their TDS is left exactly as typed.")
+        help="Recalculate TDS when payroll inputs are saved and when a regular payslip is computed. "
+             "Switch off to enter an agreed amount manually.")
+    ftp_tax_regime = fields.Selection(
+        [('new', 'New Regime'), ('old', 'Old Regime')], default='new', required=True,
+        string='Income Tax Regime', tracking=True, groups='hr_payroll.group_hr_payroll_user')
+    ftp_tax_resident = fields.Boolean(string='Indian Tax Resident', default=True,
+        groups='hr_payroll.group_hr_payroll_user', tracking=True)
+    ftp_tds_deduction_year = fields.Integer(string='Deduction FY Start Year',
+        default=lambda self: self._ftp_financial_year(fields.Date.context_today(self))[0].year,
+        groups='hr_payroll.group_hr_payroll_user')
+    ftp_tds_approved_deductions = fields.Monetary(string='Approved Annual Deductions / Exemptions',
+        groups='hr_payroll.group_hr_payroll_user', tracking=True,
+        help="HR-approved total for the selected regime and financial year, excluding standard deduction. "
+             "For old regime include eligible HRA, PT, 80C (including PF), 80D, etc., after legal caps. "
+             "For new regime enter only permitted deductions, e.g. eligible employer NPS. "
+             "These are verified totals, not raw investment declarations. Review when switching regime.")
+
+    @api.constrains('ftp_tds_approved_deductions')
+    def _check_ftp_deductions(self):
+        if any(v.ftp_tds_approved_deductions < 0 for v in self):
+            raise ValidationError(_('Approved deductions cannot be negative.'))
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        versions = super().create(vals_list)
+        if not self.env.context.get('ftp_tds_computing'):
+            versions._ftp_apply_tds()
+        return versions
+
+    def write(self, vals):
+        if 'ftp_tax_regime' in vals and 'ftp_tds_approved_deductions' not in vals:
+            changed = self.filtered(lambda v: v.ftp_tax_regime != vals['ftp_tax_regime'])
+            if changed:
+                # An old-regime exemption must never silently carry into new regime.
+                changed.with_context(ftp_tds_computing=True).write({'ftp_tds_approved_deductions': 0})
+        result = super().write(vals)
+        triggers = {'wage', 'contract_date_start', 'contract_date_end', 'employee_id',
+                    'company_id', 'ftp_tds_auto', 'ftp_tax_regime', 'ftp_tax_resident',
+                    'ftp_tds_deduction_year', 'ftp_tds_approved_deductions'}
+        if not self.env.context.get('ftp_tds_computing') and (
+                triggers.intersection(vals) or any(k.startswith('l10n_in_') and k != 'l10n_in_tds' for k in vals)):
+            self._ftp_apply_tds()
+        return result
 
     # ------------------------------------------------------------------
     # Financial year helpers
@@ -66,7 +107,8 @@ class HrVersion(models.Model):
             ('employee_id', '=', self.employee_id.id),
             ('state', 'in', ('validated', 'paid')),
             ('date_from', '>=', start),
-            ('date_to', '<=', end),
+            ('date_to', '<', on_date.replace(day=1)),
+            ('company_id', '=', self.company_id.id),
         ])
 
     def _ftp_months_employed(self, on_date):
@@ -75,6 +117,7 @@ class HrVersion(models.Model):
         start, end = self._ftp_financial_year(on_date)
         joined = self.contract_date_start or start
         first = max(joined, start)
+        end = min(end, self.contract_date_end or end)
         if first > end:
             return 0
         return (end.year - first.year) * 12 + (end.month - first.month) + 1
@@ -87,7 +130,7 @@ class HrVersion(models.Model):
         lines = slips.mapped('line_ids')
         gross_so_far = sum(lines.filtered(lambda l: l.code == 'GROSS').mapped('total'))
         # TDS lines are negative; what matters is how much has been taken.
-        tds_so_far = abs(sum(lines.filtered(lambda l: l.code == 'TDS').mapped('total')))
+        tds_so_far = max(-sum(lines.filtered(lambda l: l.code == 'TDS').mapped('total')), 0)
 
         months_left = self._ftp_months_remaining(on_date)
         monthly_gross = self.l10n_in_gross_salary or 0.0
@@ -101,8 +144,13 @@ class HrVersion(models.Model):
         months_estimated = max(months_employed - months_covered, 0)
         projected_gross = gross_so_far + monthly_gross * months_estimated
 
-        deduction = standard_deduction(self.env, on_date)
-        tax = annual_tax_on(self.env, projected_gross - deduction, on_date)
+        deduction = min(projected_gross, standard_deduction(self.env, on_date, self.ftp_tax_regime))
+        fy_start, fy_end = self._ftp_financial_year(on_date)
+        approved = self.ftp_tds_approved_deductions if self.ftp_tds_deduction_year == fy_start.year else 0
+        birthday = self.employee_id.birthday
+        age = relativedelta(fy_end, birthday).years if birthday else 0
+        tax = annual_tax_on(self.env, projected_gross - deduction - approved, on_date,
+                            self.ftp_tax_regime, self.ftp_tax_resident, age)
         outstanding = max(tax['total_tax'] - tds_so_far, 0.0)
         monthly = self.currency_id.round(outstanding / months_left) if months_left else 0.0
         return {
@@ -115,6 +163,8 @@ class HrVersion(models.Model):
             'months_estimated': months_estimated,
             'projected_gross': projected_gross,
             'standard_deduction': deduction,
+            'approved_deductions': approved,
+            'tax_regime': self.ftp_tax_regime,
             'tds_already_deducted': tds_so_far,
             'outstanding_tax': outstanding,
             'monthly_tds': monthly,
@@ -129,7 +179,6 @@ class HrVersion(models.Model):
             and v.employee_id
             and v.company_id.ftp_tds_auto_enabled
             and v.company_id.country_id.code == 'IN'
-            and v.l10n_in_gross_salary > 0
         )
 
     def _ftp_apply_tds(self, on_date=None):
@@ -140,7 +189,7 @@ class HrVersion(models.Model):
             new_value = figures['monthly_tds']
             if version.currency_id.compare_amounts(new_value, version.l10n_in_tds) == 0:
                 continue
-            version.l10n_in_tds = new_value
+            version.with_context(ftp_tds_computing=True).l10n_in_tds = new_value
             updated |= version
             _logger.info(
                 "TDS: %s set to %s/month (projected gross %s, annual tax %s, "
@@ -181,6 +230,15 @@ class HrEmployee(models.Model):
     ftp_tds_auto = fields.Boolean(
         related='version_id.ftp_tds_auto', readonly=False, inherited=True,
         groups='hr_payroll.group_hr_payroll_user')
+
+    ftp_tax_regime = fields.Selection(related='version_id.ftp_tax_regime', readonly=False,
+        inherited=True, groups='hr_payroll.group_hr_payroll_user')
+    ftp_tax_resident = fields.Boolean(related='version_id.ftp_tax_resident', readonly=False,
+        inherited=True, groups='hr_payroll.group_hr_payroll_user')
+    ftp_tds_deduction_year = fields.Integer(related='version_id.ftp_tds_deduction_year', readonly=False,
+        inherited=True, groups='hr_payroll.group_hr_payroll_user')
+    ftp_tds_approved_deductions = fields.Monetary(related='version_id.ftp_tds_approved_deductions', readonly=False,
+        inherited=True, groups='hr_payroll.group_hr_payroll_user')
 
     def action_ftp_recompute_tds(self):
         return self.version_id.action_ftp_recompute_tds()

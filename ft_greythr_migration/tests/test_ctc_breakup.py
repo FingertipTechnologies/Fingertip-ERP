@@ -62,13 +62,33 @@ class TestCtcBreakup(TransactionCase):
         self.assertAlmostEqual(v.ft_annual_ctc, expected, places=2)
         self.assertAlmostEqual(v.ft_monthly_ctc, 59274 + 1800 + 1426, places=2)
 
-    def test_variable_pay_adds_to_ctc_but_not_to_monthly(self):
-        """Variable pay is annual in CTC and zero per month - the whole design."""
+    def test_variable_pay_adds_to_yearly_and_monthly_ctc(self):
+        """Both CTC columns carry the variable pay: yearly in full, monthly as a twelfth."""
         v = self.version
+        self.assertAlmostEqual(v.ft_monthly_variable_pay, 0, places=2)
         before_annual, before_monthly = v.ft_annual_ctc, v.ft_monthly_ctc
-        v.ft_annual_variable_pay = 60000
-        self.assertAlmostEqual(v.ft_annual_ctc, before_annual + 60000, places=2)
-        self.assertAlmostEqual(v.ft_monthly_ctc, before_monthly, places=2)
+        v.ft_annual_variable_pay = 64000
+        self.assertAlmostEqual(v.ft_monthly_variable_pay, 64000 / 12, places=2)   # 5,333.33
+        self.assertAlmostEqual(v.ft_annual_ctc, before_annual + 64000, places=2)
+        self.assertAlmostEqual(v.ft_monthly_ctc, before_monthly + 64000 / 12, places=2)
+        # Monetary fields round to the paisa, so twelve months may differ from
+        # the yearly figure by up to 12 x 0.005.
+        self.assertAlmostEqual(v.ft_monthly_ctc * 12, v.ft_annual_ctc, delta=0.06)
+
+    def test_variable_pay_stays_out_of_fixed_breakup_and_deductions(self):
+        """Only the CTC totals move; fixed pay, gross, deductions and net do not."""
+        v = self.version
+        untouched = ['ft_annual_gross', 'l10n_in_gross_salary', 'ft_annual_basic',
+                     'ft_annual_hra', 'ft_annual_meal', 'ft_annual_lta',
+                     'ft_annual_fixed_allowance', 'ft_monthly_total_deductions',
+                     'ft_annual_total_deductions', 'ft_monthly_net_payable',
+                     'ft_annual_net_payable', 'ft_monthly_professional_tax']
+        before = {name: v[name] for name in untouched}
+        v.ft_annual_variable_pay = 64000
+        for name in untouched:
+            self.assertAlmostEqual(v[name], before[name], places=2, msg=name)
+        self.assertAlmostEqual(v.ft_annual_gross, 59274 * 12, places=2)
+        self.assertAlmostEqual(v.ft_monthly_net_payable, 59274 - 1800, places=2)
 
     def test_deductions_and_net(self):
         v = self.version
@@ -91,3 +111,8 @@ class TestCtcBreakup(TransactionCase):
             self.employee.ft_annual_gross, self.version.ft_annual_gross, places=2)
         self.assertAlmostEqual(
             self.employee.ft_annual_basic, self.version.ft_annual_basic, places=2)
+        self.version.ft_annual_variable_pay = 64000
+        self.assertAlmostEqual(
+            self.employee.ft_monthly_variable_pay, 64000 / 12, places=2)
+        self.assertAlmostEqual(
+            self.employee.ft_monthly_ctc, self.version.ft_monthly_ctc, places=2)

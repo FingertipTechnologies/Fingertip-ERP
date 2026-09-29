@@ -9,10 +9,16 @@
     <field name="arch" type="xml">
       <field name="l10n_in_tds" position="before">
         <field name="ftp_tds_auto"/>
+        <field name="ftp_tax_regime"/>
+        <field name="ftp_tax_resident"/>
+        <field name="ftp_tds_deduction_year"/>
+        <field name="ftp_tds_approved_deductions"/>
+        <button name="action_ftp_recompute_tds" type="object" string="Recompute TDS"
+                class="btn-link" invisible="not ftp_tds_auto" groups="hr_payroll.group_hr_payroll_user"/>
       </field>
       <field name="l10n_in_tds" position="attributes">
         <attribute name="readonly">ftp_tds_auto</attribute>
-        <attribute name="help">Computed automatically each month while Automatic TDS is on. Switch it off to type a figure by hand.</attribute>
+        <attribute name="help">Recalculated on saving payroll inputs and computing regular payslips while Automatic TDS is on. Switch it off to type a figure by hand.</attribute>
       </field>
     </field>
   </record>
