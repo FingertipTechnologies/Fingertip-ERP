@@ -7,3 +7,4 @@ from . import ctc_breakup
 from . import res_bank
 from . import probation
 from . import professional_tax
+from . import work_entry_versions
