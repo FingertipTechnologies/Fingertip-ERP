@@ -31,7 +31,7 @@ class TestGreythrPayroll(TransactionCase):
         cls.ctc.action_apply_to_payroll()
         cls.structure = cls.env.ref('ft_greythr_migration.greythr_structure')
 
-    def _slip(self, fraction=1, date_from='2026-06-01', date_to='2026-06-30'):
+    def _slip(self, fraction=1, date_from='2026-06-01', date_to='2026-06-30', struct=None):
         attendance = self.env.ref('hr_work_entry.work_entry_type_attendance')
         unpaid = self.env.ref('hr_work_entry.work_entry_type_unpaid_leave')
         worked = []
@@ -44,7 +44,7 @@ class TestGreythrPayroll(TransactionCase):
         slip = self.env['hr.payslip'].create({
             'name': 'Mapping Test', 'employee_id': self.employee.id,
             'date_from': date_from, 'date_to': date_to,
-            'struct_id': self.structure.id, 'worked_days_line_ids': worked,
+            'struct_id': (struct or self.structure).id, 'worked_days_line_ids': worked,
         })
         slip.compute_sheet()
         return slip
@@ -121,10 +121,29 @@ class TestGreythrPayroll(TransactionCase):
         with self.assertRaises(UserError):
             self.ctc.action_apply_to_payroll()
 
-    def test_standard_india_structure_unchanged(self):
-        rule = self.env.ref('l10n_in_hr_payroll.hr_salary_rule_pfe_with_pf')
-        self.assertEqual(rule.category_id, self.env.ref('hr_payroll.DED'))
-        self.assertNotEqual(rule.struct_id, self.structure)
+    def test_standard_india_employer_costs_are_ctc_costs(self):
+        """Employer PF, ESI, LWF and gratuity on Odoo's India structure are CTC costs, not deductions."""
+        employer = self.env.ref('ft_greythr_migration.greythr_employer_category')
+        standard = self.env.ref('l10n_in_hr_payroll.hr_payroll_structure_in_employee_salary')
+        self.assertNotEqual(standard, self.structure)
+        for xmlid in ('hr_salary_rule_pfe_with_pf', 'l10n_in_hr_payslip_rule_employer_esicf',
+                      'l10n_in_hr_payslip_rule_lwf_employer', 'l10n_in_hr_payslip_rule_gratuity'):
+            rule = self.env.ref('l10n_in_hr_payroll.' + xmlid)
+            self.assertEqual(rule.category_id, employer, xmlid)
+            self.assertEqual(rule.struct_id, standard, xmlid)
+        # On a payslip the employer PF line carries the category and stays out of the net.
+        self.employee.version_id.write({'l10n_in_provident_fund': True,
+                                        'l10n_in_pf_employer_amount': 1800})
+        slip = self._slip(struct=standard)
+        lines = {line.code: line for line in slip.line_ids}
+        self.assertIn('PFE', lines)
+        self.assertEqual(lines['PFE'].category_id, employer)
+        self.assertIn('GRATUITY', lines)
+        self.assertEqual(lines['GRATUITY'].category_id, employer)
+        self.assertNotEqual(lines['PFE'].total, 0)
+        net_from_categories = sum(line.total for line in slip.line_ids
+                                  if line.category_id.code in ('BASIC', 'ALW', 'DED'))
+        self.assertAlmostEqual(lines['NET'].total, net_from_categories, places=2)
 
     def test_report_separates_employer_costs(self):
         from lxml import html

@@ -22,4 +22,23 @@
     <field name="amount_python_compute">result = version.ft_children_education_allowance</field>
     <field name="struct_id" ref="l10n_in_hr_payroll.hr_payroll_structure_in_employee_salary"/>
   </record>
+
+  <!-- Odoo ships the employer PF, ESI, LWF and gratuity rules of its India
+       structure as Deductions, so they come off the employee's net pay. They are employer
+       costs, so they move to Employer CTC Costs, the category the greytHR
+       structure already uses: they still print, but no longer reduce the net.
+       The standard data file is not noupdate, so upgrading l10n_in_hr_payroll
+       resets them; this module loads after it and puts them back. -->
+  <record id="l10n_in_hr_payroll.hr_salary_rule_pfe_with_pf" model="hr.salary.rule">
+    <field name="category_id" ref="greythr_employer_category"/>
+  </record>
+  <record id="l10n_in_hr_payroll.l10n_in_hr_payslip_rule_employer_esicf" model="hr.salary.rule">
+    <field name="category_id" ref="greythr_employer_category"/>
+  </record>
+  <record id="l10n_in_hr_payroll.l10n_in_hr_payslip_rule_lwf_employer" model="hr.salary.rule">
+    <field name="category_id" ref="greythr_employer_category"/>
+  </record>
+  <record id="l10n_in_hr_payroll.l10n_in_hr_payslip_rule_gratuity" model="hr.salary.rule">
+    <field name="category_id" ref="greythr_employer_category"/>
+  </record>
 </odoo>
