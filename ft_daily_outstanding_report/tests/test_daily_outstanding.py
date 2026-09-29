@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from unittest.mock import patch
 
 from odoo.exceptions import ValidationError
@@ -33,9 +33,31 @@ class TestDailyOutstanding(TransactionCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]['total'], 300)
         self.assertEqual(rows[0]['outstanding'], 300)
+        journal = self.env['account.journal'].search(
+            [('company_id', '=', company.id), ('type', '=', 'bank')], limit=1)
+        # The database default receivable may be archived; post against an active one.
+        partner.with_company(company).property_account_receivable_id = self.env['account.account'].search(
+            [('account_type', '=', 'asset_receivable'), ('company_ids', 'in', company.id)], limit=1)
+        tomorrow = date.today() + timedelta(days=1)
+        payments = self.env['account.payment'].create([{
+            'partner_id': partner.id, 'company_id': company.id, 'journal_id': journal.id,
+            'payment_type': 'inbound', 'partner_type': 'customer',
+            'amount': amount, 'date': tomorrow + timedelta(days=days), 'memo': memo,
+        } for amount, days, memo in ((50, 0, 'Older <Memo>'), (70, 1, 'Newest memo'),
+                                     (90, 2, 'Unposted-memo'))])
+        payments[:2].action_post()
+        self.assertEqual(len(company._recent_payment_rows(limit=1)), 1)
+        rows = company._recent_payment_rows()
+        self.assertEqual([row['memo'] for row in rows[:2]], ['Newest memo', 'Older <Memo>'])
+        self.assertEqual(rows[0]['amount'], 70)
+        self.assertEqual(rows[0]['partner'], partner)
+        self.assertNotIn('Unposted-memo', [row['memo'] for row in rows])
         body = company._daily_outstanding_body(datetime(2026, 9, 23).date())
-        self.assertEqual(str(body).count('<table'), 2)
+        self.assertEqual(str(body).count('<table'), 3)
         self.assertIn('Report &lt;Customer&gt;', body)
+        self.assertIn('Older &lt;Memo&gt;', body)
+        self.assertIn(payments[1].name, body)
+        self.assertNotIn('Unposted-memo', body)
         mail_domain = [('model', '=', 'res.company'), ('res_id', '=', company.id)]
         Mail = self.env['mail.mail']
         before = Mail.search_count(mail_domain)

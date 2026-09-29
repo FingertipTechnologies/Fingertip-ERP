@@ -6,9 +6,11 @@ from markupsafe import Markup
 
 from odoo import api, fields, models, _
 from odoo.exceptions import ValidationError
-from odoo.tools import email_normalize, format_amount
+from odoo.tools import email_normalize, format_amount, format_date
 
 _logger = logging.getLogger(__name__)
+
+RECENT_PAYMENTS = 20
 
 
 class ResCompany(models.Model):
@@ -54,6 +56,21 @@ class ResCompany(models.Model):
                         -item[1][1], item[0][0].name or '',
                         item[0][0].id, item[0][1].id))]
 
+    def _recent_payment_rows(self, limit=RECENT_PAYMENTS):
+        """Newest confirmed customer payments of this company, most recent first."""
+        self.ensure_one()
+        payments = self.env['account.payment'].sudo().with_company(self).search([
+            ('company_id', '=', self.id),
+            ('partner_type', '=', 'customer'),
+            ('payment_type', '=', 'inbound'),
+            ('state', 'in', ['in_process', 'paid']),
+        ], order='date desc, id desc', limit=limit)
+        return [dict(date=payment.date, name=payment.name or '',
+                     partner=payment.partner_id.commercial_partner_id,
+                     memo=payment.memo or '', amount=payment.amount,
+                     currency=payment.currency_id)
+                for payment in payments]
+
     def _daily_outstanding_body(self, report_date):
         self.ensure_one()
         sections = [
@@ -90,9 +107,30 @@ class ResCompany(models.Model):
             if not rows:
                 body += Markup('<tr><td colspan="3">No outstanding amounts.</td></tr>')
             body += Markup('</table>')
+        payments = self._recent_payment_rows()
+        body += Markup('<h3>Recent Payments</h3><table border="1" cellpadding="8" '
+                       'cellspacing="0" style="border-collapse:collapse;width:100%;table-layout:fixed">'
+                       '<tr><th style="width:14%;text-align:left">Date</th>'
+                       '<th style="width:18%;text-align:left">Number</th>'
+                       '<th style="width:28%;text-align:left">Customer Name</th>'
+                       '<th style="width:22%;text-align:left">Memo</th>'
+                       '<th style="width:18%">Amount</th></tr>')
+        for row in payments:
+            body += Markup('<tr><td>%s</td>'
+                           '<td style="overflow-wrap:anywhere;word-wrap:break-word">%s</td>'
+                           '<td style="overflow-wrap:anywhere;word-wrap:break-word">%s</td>'
+                           '<td style="overflow-wrap:anywhere;word-wrap:break-word">%s</td>'
+                           '<td align="right">%s</td></tr>') % (
+                format_date(self.env, row['date']), row['name'], row['partner'].name or '',
+                row['memo'], format_amount(self.env, row['amount'], row['currency']))
+        if not payments:
+            body += Markup('<tr><td colspan="5">No payments recorded.</td></tr>')
+        body += Markup('</table>')
         return body + Markup('<p>Totals include only documents with a positive outstanding '
                              'balance. Pro forma: Total / ProForma Balance; '
-                             'posted customer invoices: Total / Amount Due.</p>')
+                             'posted customer invoices: Total / Amount Due. '
+                             'Recent Payments: the %s most recent confirmed customer '
+                             'payments, newest first.</p>') % RECENT_PAYMENTS
 
     @api.model
     def _cron_daily_outstanding_report(self):

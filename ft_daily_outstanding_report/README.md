@@ -10,7 +10,8 @@ be later if the server or mail queue is stopped. Duplicate runs on the same Indi
 calendar date do not queue another message. Failed outgoing emails remain in the
 standard Technical → Emails list for retry.
 
-Two tables group documents by commercial customer and original currency:
+Three tables. The first two group documents by commercial customer and original
+currency:
 - Pro Forma: non-cancelled quotations / sales orders, `amount_total` and the
   existing `balance_amount` (ProForma Balance), including advance tracker logic.
 - Invoices: posted customer invoices, `amount_total` and `amount_residual`
@@ -18,6 +19,13 @@ Two tables group documents by commercial customer and original currency:
 
 Only positive outstanding documents contribute to either table and its totals.
 Currencies have separate totals. Empty sections show “No outstanding amounts.”
+
+- Recent Payments (19.0.1.2.0): the 20 most recent confirmed customer payments of the
+  company (`account.payment`, customer / inbound, state In Process or Paid), newest
+  first by payment date, with Date, Number, Customer (commercial partner), Memo and
+  Amount in the payment currency. Draft, cancelled and rejected payments are
+  excluded. No total row. Shows “No payments recorded.” when empty.
+
 No changes are made to payments, balances, or accounting entries.
 
 Install with the parent fingertip_accounting_addons directory on addons_path:
