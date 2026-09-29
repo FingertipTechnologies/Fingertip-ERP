@@ -1,0 +1,23 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <record id="res_config_settings_view_form_tds" model="ir.ui.view">
+    <field name="name">res.config.settings.form.tds</field>
+    <field name="model">res.config.settings</field>
+    <field name="inherit_id" ref="hr_payroll.res_config_settings_view_form"/>
+    <field name="arch" type="xml">
+      <xpath expr="//block[last()]" position="after">
+        <block title="Indian TDS" name="ftp_tds_container"
+               groups="hr_payroll.group_hr_payroll_manager">
+          <setting id="ftp_tds_setting" string="Automatic TDS Computation"
+                   help="Project each employee's annual gross, apply the new-regime slabs, and spread the tax still owed over the months left in the financial year.">
+            <field name="ftp_tds_auto_enabled"/>
+            <div class="mt8" invisible="not ftp_tds_auto_enabled">
+              <button name="action_ftp_recompute_all_tds" type="object"
+                      string="Recompute TDS Now" class="btn-link" icon="fa-refresh"/>
+            </div>
+          </setting>
+        </block>
+      </xpath>
+    </field>
+  </record>
+</odoo>

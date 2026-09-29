@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="ft_payslip_preview.PayslipPreviewDialog">
+        <Dialog title="props.title" size="'fs'" footer="false" withBodyPadding="false">
+            <iframe class="ft_payslip_preview w-100 h-100 border-0" t-att-src="props.url" title="Payslip preview"/>
+        </Dialog>
+    </t>
+</templates>

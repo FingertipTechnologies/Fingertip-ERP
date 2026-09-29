@@ -266,3 +266,50 @@ class TestGreythrPayroll(TransactionCase):
         self.assertAlmostEqual(lines['GROSS'], basic + allowances, places=2)
         self.assertIn('EDUALW', [l.code for l in slip.line_ids
                                  if l.category_id.code == 'ALW'])
+
+    # ------------------------------------------------------------------
+    # Fixed Pay must equal the monthly wage
+    # ------------------------------------------------------------------
+    def test_32_gross_equals_wage_with_meal_allowance(self):
+        """l10n_in adds meal on top of the wage; a CTC sheet does not.
+
+        Without the override, an employee on 1,46,379.57 with a 2,200 meal
+        allowance shows Fixed Pay of 1,48,579.57 -- 2,200 more than the salary
+        actually agreed.
+        """
+        employee = self.env['hr.employee'].create({
+            'name': 'Fixed Pay Employee', 'company_id': self.company.id,
+            'date_version': '2026-09-01', 'contract_date_start': '2026-09-01',
+            'wage': 146379.57,
+        })
+        version = employee.sudo().version_id
+        version.write({
+            'l10n_in_basic_salary_amount': 73190.00,
+            'l10n_in_hra': 29276.00,
+            'l10n_in_leave_travel_allowance': 3000.00,
+            'l10n_in_meal_voucher_amount': 2200.00,
+        })
+        self.assertAlmostEqual(version.l10n_in_gross_salary, 146379.57, 2)
+        # The residual absorbs the meal allowance rather than stacking on top.
+        self.assertAlmostEqual(version.l10n_in_fixed_allowance, 38713.57, 2)
+        # And the yearly panel follows from it.
+        self.assertAlmostEqual(version.ft_annual_gross, 146379.57 * 12, 2)
+
+    def test_33_gross_still_equals_wage_without_add_ons(self):
+        """No meal or phone: behaviour is unchanged from standard l10n_in."""
+        employee = self.env['hr.employee'].create({
+            'name': 'Plain Employee', 'company_id': self.company.id,
+            'date_version': '2026-09-01', 'contract_date_start': '2026-09-01',
+            'wage': 50000.00,
+        })
+        version = employee.sudo().version_id
+        version.write({'l10n_in_basic_salary_amount': 25000.00,
+                       'l10n_in_hra': 10000.00})
+        self.assertAlmostEqual(version.l10n_in_gross_salary, 50000.00, 2)
+
+    def test_34_ctc_driven_versions_are_untouched(self):
+        """Employees on an applied greytHR CTC keep the CTC's own figure."""
+        version = self.employee.sudo().version_id
+        self.assertEqual(version.greythr_ctc_id, self.ctc)
+        self.assertAlmostEqual(version.l10n_in_fixed_allowance,
+                               self.ctc.full_special_allowance, 2)

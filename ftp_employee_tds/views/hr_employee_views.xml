@@ -1,0 +1,19 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <!-- Sits with TDS Deduction in the Tax Deductions group, so it is obvious
+       which field the toggle governs. -->
+  <record id="view_employee_form_tds" model="ir.ui.view">
+    <field name="name">hr.employee.form.tds</field>
+    <field name="model">hr.employee</field>
+    <field name="inherit_id" ref="l10n_in_hr_payroll.hr_employee_view_form_in_inherit"/>
+    <field name="arch" type="xml">
+      <field name="l10n_in_tds" position="before">
+        <field name="ftp_tds_auto"/>
+      </field>
+      <field name="l10n_in_tds" position="attributes">
+        <attribute name="readonly">ftp_tds_auto</attribute>
+        <attribute name="help">Computed automatically each month while Automatic TDS is on. Switch it off to type a figure by hand.</attribute>
+      </field>
+    </field>
+  </record>
+</odoo>

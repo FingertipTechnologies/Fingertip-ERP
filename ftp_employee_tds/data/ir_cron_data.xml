@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <record id="ir_cron_update_tds" model="ir.cron">
+    <field name="name">Payroll: Recompute monthly TDS</field>
+    <field name="model_id" ref="hr.model_hr_version"/>
+    <field name="state">code</field>
+    <field name="code">model._cron_update_tds()</field>
+    <field name="interval_number">1</field>
+    <field name="interval_type">months</field>
+  </record>
+</odoo>

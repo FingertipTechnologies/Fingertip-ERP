@@ -61,6 +61,9 @@ class GreythrCTC(models.Model):
 class HrVersion(models.Model):
     _inherit = 'hr.version'
 
+    # greytHR calls this salary component "Special Allowance"; only the label changes.
+    l10n_in_fixed_allowance = fields.Monetary(string='Special Allowance')
+
     @api.model
     def _get_marital_status_selection(self):
         return super()._get_marital_status_selection() + [('not_provided', self.env._('Not Provided'))]

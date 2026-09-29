@@ -126,12 +126,37 @@ class HrVersion(models.Model):
             if version.greythr_ctc_id and version.greythr_ctc_id.employee_id != version.employee_id:
                 raise ValidationError(self.env._('The applied CTC must belong to this employee.'))
 
-    @api.depends('greythr_ctc_id', 'greythr_ctc_id.full_special_allowance')
+    @api.depends('greythr_ctc_id', 'greythr_ctc_id.full_special_allowance',
+                 'l10n_in_meal_voucher_amount', 'l10n_in_phone_subscription',
+                 'l10n_in_internet_subscription', 'l10n_in_company_transport')
     def _compute_l10n_in_fixed_allowance(self):
+        """Make the monthly wage the whole fixed gross.
+
+        l10n_in works the special allowance out as a residual of the wage, but
+        only against basic, HRA, standard allowance, bonus and LTA. Meal,
+        phone, internet and transport are then *added on top* when it sums the
+        gross, so Fixed Pay comes out as wage + those four -- for an employee
+        on a 2,200 meal allowance, 2,200 more than the agreed salary.
+
+        A Fingertip CTC sheet treats the monthly figure as the entire fixed
+        gross with those components inside it, so they are taken out of the
+        residual here and Fixed Pay equals the wage exactly. Without this the
+        figure is also unstable: anyone who corrects it by hand has their
+        correction silently undone the next time the residual recomputes.
+        """
         super()._compute_l10n_in_fixed_allowance()
-        for version in self.filtered('greythr_ctc_id'):
-            # Native residual includes meal/phone/conveyance already paid by other rules.
-            version.l10n_in_fixed_allowance = version.greythr_ctc_id.full_special_allowance
+        for version in self:
+            if version.greythr_ctc_id:
+                # Native residual includes meal/phone/conveyance already paid
+                # by other rules; the CTC record is the source of truth here.
+                version.l10n_in_fixed_allowance = version.greythr_ctc_id.full_special_allowance
+            elif version.country_code == 'IN' and version.l10n_in_basic_salary_amount:
+                version.l10n_in_fixed_allowance -= sum([
+                    version.l10n_in_phone_subscription,
+                    version.l10n_in_internet_subscription,
+                    version.l10n_in_meal_voucher_amount,
+                    version.l10n_in_company_transport,
+                ])
 
 
     ft_children_education_allowance = fields.Monetary(

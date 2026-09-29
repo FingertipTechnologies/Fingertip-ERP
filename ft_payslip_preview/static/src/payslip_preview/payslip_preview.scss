@@ -1,0 +1,6 @@
+// Fill the fullscreen dialog body; the floor keeps the viewer usable if the
+// body's height does not resolve to 100%.
+.ft_payslip_preview {
+    display: block;
+    min-height: calc(100vh - 8rem);
+}
