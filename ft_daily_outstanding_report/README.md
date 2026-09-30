@@ -20,11 +20,20 @@ currency:
 Only positive outstanding documents contribute to either table and its totals.
 Currencies have separate totals. Empty sections show “No outstanding amounts.”
 
-- Recent Payments (19.0.1.2.0): the 20 most recent confirmed customer payments of the
-  company (`account.payment`, customer / inbound, state In Process or Paid), newest
-  first by payment date, with Date, Number, Customer (commercial partner), Memo and
-  Amount in the payment currency. Draft, cancelled and rejected payments are
-  excluded. No total row. Shows “No payments recorded.” when empty.
+- Recent Payments (19.0.1.2.0, bank transactions since 19.0.1.2.1): the 20 most
+  recent customer receipts of the company, newest first, from two sources shown in
+  the Source column:
+  - Payment: `account.payment`, customer / inbound, state In Process or Paid. Draft,
+    cancelled and rejected payments are excluded.
+  - Bank: posted incoming bank statement lines (`amount > 0`) whose journal entry
+    carries a receivable line (matched to an invoice or booked as an advance) or
+    still sits on the journal's suspense account (awaiting reconciliation). Number is
+    the bank journal entry, Memo the bank label.
+  A statement line matched to a registered payment is booked to the outstanding
+  receipts account and is therefore not listed as Bank; the payment is listed once.
+  Bank interest, transfers and other non-customer credits are left out. Columns:
+  Date, Source, Number, Customer (commercial partner, or the bank's partner name),
+  Memo, Amount. No total row. Shows “No payments recorded.” when empty.
 
 No changes are made to payments, balances, or accounting entries.
 

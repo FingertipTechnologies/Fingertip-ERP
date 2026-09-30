@@ -11,6 +11,7 @@ from odoo.tools import email_normalize, format_amount, format_date
 _logger = logging.getLogger(__name__)
 
 RECENT_PAYMENTS = 20
+SOURCE_LABELS = {'payment': 'Payment', 'bank': 'Bank'}
 
 
 class ResCompany(models.Model):
@@ -65,11 +66,60 @@ class ResCompany(models.Model):
             ('payment_type', '=', 'inbound'),
             ('state', 'in', ['in_process', 'paid']),
         ], order='date desc, id desc', limit=limit)
-        return [dict(date=payment.date, name=payment.name or '',
+        return [dict(source='payment', date=payment.date, create_date=payment.create_date,
+                     name=payment.name or '',
                      partner=payment.partner_id.commercial_partner_id,
+                     partner_name=payment.partner_id.commercial_partner_id.name or '',
                      memo=payment.memo or '', amount=payment.amount,
                      currency=payment.currency_id)
                 for payment in payments]
+
+    @api.model
+    def _bank_line_is_customer_receipt(self, line):
+        """True for money in that is booked to a receivable or still unreconciled."""
+        journal = line.journal_id
+        accounts = line.move_id.line_ids.account_id - journal.default_account_id
+        return journal.suspense_account_id in accounts or any(
+            account.account_type == 'asset_receivable' for account in accounts)
+
+    def _recent_bank_rows(self, limit=RECENT_PAYMENTS):
+        """Newest incoming bank transactions that are customer receipts, most recent first.
+
+        A transaction qualifies when its own journal entry carries a receivable
+        line (matched to an invoice, or booked as an advance) or still sits on
+        the journal's suspense account (not reconciled yet). Money booked
+        elsewhere is left out: bank interest, transfers, and transactions
+        matched to a registered payment, whose counterpart is the outstanding
+        receipts account. That payment is listed by _recent_payment_rows, so a
+        receipt never shows twice.
+        """
+        self.ensure_one()
+        StatementLine = self.env['account.bank.statement.line'].sudo().with_company(self)
+        domain = [('company_id', '=', self.id), ('amount', '>', 0), ('state', '=', 'posted')]
+        rows, offset, page = [], 0, 100
+        while len(rows) < limit:
+            lines = StatementLine.search(domain, order='internal_index desc', limit=page, offset=offset)
+            if not lines:
+                break
+            offset += page
+            for line in lines:
+                if not self._bank_line_is_customer_receipt(line):
+                    continue
+                partner = line.partner_id.commercial_partner_id
+                rows.append(dict(source='bank', date=line.date, create_date=line.create_date,
+                                 name=line.move_id.name or '', partner=partner,
+                                 partner_name=partner.name or line.partner_name or '',
+                                 memo=line.payment_ref or '', amount=line.amount,
+                                 currency=line.currency_id or self.currency_id))
+                if len(rows) == limit:
+                    break
+        return rows
+
+    def _recent_receipt_rows(self, limit=RECENT_PAYMENTS):
+        """Registered payments and incoming bank transactions together, newest first."""
+        rows = self._recent_payment_rows(limit) + self._recent_bank_rows(limit)
+        rows.sort(key=lambda row: (row['date'], row['create_date']), reverse=True)
+        return rows[:limit]
 
     def _daily_outstanding_body(self, report_date):
         self.ensure_one()
@@ -107,30 +157,36 @@ class ResCompany(models.Model):
             if not rows:
                 body += Markup('<tr><td colspan="3">No outstanding amounts.</td></tr>')
             body += Markup('</table>')
-        payments = self._recent_payment_rows()
+        receipts = self._recent_receipt_rows()
         body += Markup('<h3>Recent Payments</h3><table border="1" cellpadding="8" '
                        'cellspacing="0" style="border-collapse:collapse;width:100%;table-layout:fixed">'
-                       '<tr><th style="width:14%;text-align:left">Date</th>'
-                       '<th style="width:18%;text-align:left">Number</th>'
-                       '<th style="width:28%;text-align:left">Customer Name</th>'
-                       '<th style="width:22%;text-align:left">Memo</th>'
-                       '<th style="width:18%">Amount</th></tr>')
-        for row in payments:
-            body += Markup('<tr><td>%s</td>'
+                       '<tr><th style="width:12%;text-align:left">Date</th>'
+                       '<th style="width:10%;text-align:left">Source</th>'
+                       '<th style="width:16%;text-align:left">Number</th>'
+                       '<th style="width:26%;text-align:left">Customer Name</th>'
+                       '<th style="width:20%;text-align:left">Memo</th>'
+                       '<th style="width:16%">Amount</th></tr>')
+        for row in receipts:
+            body += Markup('<tr><td>%s</td><td>%s</td>'
                            '<td style="overflow-wrap:anywhere;word-wrap:break-word">%s</td>'
                            '<td style="overflow-wrap:anywhere;word-wrap:break-word">%s</td>'
                            '<td style="overflow-wrap:anywhere;word-wrap:break-word">%s</td>'
                            '<td align="right">%s</td></tr>') % (
-                format_date(self.env, row['date']), row['name'], row['partner'].name or '',
-                row['memo'], format_amount(self.env, row['amount'], row['currency']))
-        if not payments:
-            body += Markup('<tr><td colspan="5">No payments recorded.</td></tr>')
+                format_date(self.env, row['date']), SOURCE_LABELS[row['source']], row['name'],
+                row['partner_name'], row['memo'],
+                format_amount(self.env, row['amount'], row['currency']))
+        if not receipts:
+            body += Markup('<tr><td colspan="6">No payments recorded.</td></tr>')
         body += Markup('</table>')
         return body + Markup('<p>Totals include only documents with a positive outstanding '
                              'balance. Pro forma: Total / ProForma Balance; '
                              'posted customer invoices: Total / Amount Due. '
-                             'Recent Payments: the %s most recent confirmed customer '
-                             'payments, newest first.</p>') % RECENT_PAYMENTS
+                             'Recent Payments: the %s most recent customer receipts, newest '
+                             'first: registered payments and incoming bank transactions that '
+                             'are matched to invoices or still awaiting reconciliation. A bank '
+                             'transaction matched to a registered payment is listed once, as '
+                             'the payment; interest and other non-customer credits are left '
+                             'out.</p>') % RECENT_PAYMENTS
 
     @api.model
     def _cron_daily_outstanding_report(self):

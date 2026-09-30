@@ -84,6 +84,75 @@ class TestDailyOutstanding(TransactionCase):
             company._cron_daily_outstanding_report()
         self.assertEqual(Mail.search_count(mail_domain), before + 1)
 
+    def test_recent_receipts_include_bank_transactions(self):
+        company = self.env.company
+        partner = self.env['res.partner'].create({'name': 'Bank Customer', 'email': 'bank@example.com'})
+        partner.with_company(company).property_account_receivable_id = self.env['account.account'].search(
+            [('account_type', '=', 'asset_receivable'), ('company_ids', 'in', company.id)], limit=1)
+        journal = self.env['account.journal'].search(
+            [('company_id', '=', company.id), ('type', '=', 'bank')], limit=1)
+        base = date.today() + timedelta(days=10)
+
+        def bank_line(amount, memo, days):
+            return self.env['account.bank.statement.line'].create({
+                'journal_id': journal.id, 'date': base + timedelta(days=days),
+                'payment_ref': memo, 'partner_id': partner.id, 'amount': amount})
+
+        pending = bank_line(300, 'Pending bank credit', 0)
+        bank_line(-200, 'Supplier debit', 1)
+        payment = self.env['account.payment'].create({
+            'partner_id': partner.id, 'company_id': company.id, 'journal_id': journal.id,
+            'payment_type': 'inbound', 'partner_type': 'customer', 'amount': 70,
+            'date': base + timedelta(days=2), 'memo': 'Registered payment'})
+        payment.action_post()
+        rows = company._recent_receipt_rows()
+        found = [(row['source'], row['memo']) for row in rows]
+        self.assertIn(('bank', 'Pending bank credit'), found)
+        self.assertIn(('payment', 'Registered payment'), found)
+        self.assertNotIn(('bank', 'Supplier debit'), found)
+        self.assertEqual(found[0], ('payment', 'Registered payment'))     # newest first
+        self.assertEqual(rows[0]['partner_name'], 'Bank Customer')
+        self.assertEqual(len(company._recent_receipt_rows(limit=1)), 1)
+        body = company._daily_outstanding_body(date.today())
+        self.assertEqual(str(body).count('<table'), 3)
+        self.assertIn('Pending bank credit', body)
+        self.assertIn('<td>Bank</td>', body)
+        self.assertIn('<td>Payment</td>', body)
+        if not hasattr(pending, 'set_line_bank_statement_line'):
+            return  # matching a transaction needs the enterprise bank reconciliation
+        # Matched to an invoice: still a bank receipt. The database default income
+        # account may be archived, so name an active one.
+        income_account = self.env['account.account'].search(
+            [('account_type', '=', 'income'), ('company_ids', 'in', company.id)], limit=1)
+        invoice = self.env['account.move'].create({
+            'move_type': 'out_invoice', 'partner_id': partner.id, 'invoice_date': base,
+            'invoice_line_ids': [(0, 0, {'name': 'Service', 'quantity': 1, 'price_unit': 400,
+                                         'account_id': income_account.id, 'tax_ids': [(5, 0, 0)]})]})
+        invoice.action_post()
+        matched = bank_line(400, 'Matched to invoice', 3)
+        matched.set_line_bank_statement_line(invoice.line_ids.filtered(
+            lambda line: line.account_id.account_type == 'asset_receivable').ids)
+        self.assertTrue(matched.is_reconciled)
+        # Matched to the registered payment: listed once, as the payment.
+        outstanding = payment.move_id.line_ids.filtered(
+            lambda line: line.account_id == payment.outstanding_account_id)
+        if outstanding:
+            bank_line(70, 'Matched to payment', 4).set_line_bank_statement_line(outstanding.ids)
+        # Bank interest: not a customer receipt.
+        interest = bank_line(50, 'Bank interest', 5)
+        income = self.env['account.account'].search(
+            [('account_type', '=', 'income_other'), ('company_ids', 'in', company.id)], limit=1)
+        if income:
+            suspense = interest.move_id.line_ids.filtered(
+                lambda line: line.account_id == journal.suspense_account_id)
+            interest.set_account_bank_statement_line(suspense.id, income.id)
+        found = [(row['source'], row['memo']) for row in company._recent_receipt_rows()]
+        self.assertIn(('bank', 'Matched to invoice'), found)
+        self.assertNotIn(('bank', 'Matched to payment'), found)
+        self.assertEqual(found.count(('payment', 'Registered payment')), 1)
+        if income:
+            self.assertNotIn(('bank', 'Bank interest'), found)
+
     def test_enable_through_settings(self):
         company = self.env.company
         company.write({'daily_outstanding_enabled': False,
