@@ -95,3 +95,10 @@ gross ₹2,21,856, and correctly computes ₹0 TDS.
 
 These are local staging results; the remote server needs the updated addon
 files and a module upgrade before it receives the same behavior.
+
+## Company calculator review
+
+See [WORKBOOK_REVIEW.md](WORKBOOK_REVIEW.md) for the supplied XLSB comparison,
+confirmed workbook issues and scope. Version 19.0.2.0.1 adds statutory rounding
+of taxable income and annual tax to ₹10; monthly estimates retain currency
+precision. The expanded regression suite passes all 26 tests.

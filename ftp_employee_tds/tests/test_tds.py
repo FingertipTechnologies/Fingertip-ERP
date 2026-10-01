@@ -299,9 +299,9 @@ class TestTds(TransactionCase):
         })
         slip.compute_sheet()
         gross = slip.line_ids.filtered(lambda line: line.code == 'GROSS')
-        gross.write({'amount': 310000, 'quantity': 1, 'rate': 100})
+        gross.write({'amount': 310000, 'quantity': 1, 'rate': 100, 'total': 310000})
         tds = slip.line_ids.filtered(lambda line: line.code == 'TDS')
-        tds.write({'amount': -63000, 'quantity': 1, 'rate': 100})
+        tds.write({'amount': -63000, 'quantity': 1, 'rate': 100, 'total': -63000})
         # Mark only this transaction-scoped fixture final; no payment/posting.
         slip.state = 'validated'
         may = version._ftp_tds_breakdown(date(2026, 5, 1))
@@ -313,5 +313,5 @@ class TestTds(TransactionCase):
         april = version._ftp_tds_breakdown(self.today)
         self.assertEqual(april['tds_already_deducted'], 0)
         self.assertEqual(april['months_covered_by_payslips'], 0)
-        tds.amount = -900000
+        tds.write({'amount': -900000, 'total': -900000})
         self.assertEqual(version._ftp_tds_breakdown(date(2026, 5, 1))['monthly_tds'], 0)
