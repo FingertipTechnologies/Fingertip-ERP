@@ -52,11 +52,34 @@ class HrVersion(models.Model):
              "For old regime include eligible HRA, PT, 80C (including PF), 80D, etc., after legal caps. "
              "For new regime enter only permitted deductions, e.g. eligible employer NPS. "
              "These are verified totals, not raw investment declarations. Review when switching regime.")
+    ftp_tds_slab_set_id = fields.Many2one('ftp.tds.slab.set', string='Override TDS Slab Set',
+        groups='hr_payroll.group_hr_payroll_user', tracking=True,
+        domain="[('regime', '=', ftp_tax_regime), ('company_id', 'in', [company_id, False])]",
+        help="Normally leave empty: the slab set is picked from the tax regime and the payslip "
+             "month. Set it only for an exception. It is used only for dates it covers; outside "
+             "them the normal set applies again.")
+    ftp_tds_slab_set_current_id = fields.Many2one('ftp.tds.slab.set', string='TDS Slab Set in Use',
+        compute='_compute_ftp_tds_slab_set_current', groups='hr_payroll.group_hr_payroll_user',
+        help="The slab set TDS is worked out with today.")
 
     @api.constrains('ftp_tds_approved_deductions')
     def _check_ftp_deductions(self):
         if any(v.ftp_tds_approved_deductions < 0 for v in self):
             raise ValidationError(_('Approved deductions cannot be negative.'))
+
+    @api.constrains('ftp_tds_slab_set_id', 'ftp_tax_regime')
+    def _check_ftp_slab_set_regime(self):
+        for version in self:
+            slab_set = version.ftp_tds_slab_set_id
+            if slab_set and slab_set.regime != version.ftp_tax_regime:
+                raise ValidationError(_(
+                    'The override TDS slab set "%s" is for a different tax regime.', slab_set.name))
+
+    @api.depends('ftp_tds_slab_set_id', 'ftp_tax_regime', 'company_id')
+    def _compute_ftp_tds_slab_set_current(self):
+        today = fields.Date.context_today(self)
+        for version in self:
+            version.ftp_tds_slab_set_current_id = version._ftp_tds_slab_set(today, raise_if_missing=False)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -66,15 +89,18 @@ class HrVersion(models.Model):
         return versions
 
     def write(self, vals):
-        if 'ftp_tax_regime' in vals and 'ftp_tds_approved_deductions' not in vals:
+        if 'ftp_tax_regime' in vals:
             changed = self.filtered(lambda v: v.ftp_tax_regime != vals['ftp_tax_regime'])
-            if changed:
-                # An old-regime exemption must never silently carry into new regime.
-                changed.with_context(ftp_tds_computing=True).write({'ftp_tds_approved_deductions': 0})
+            # An old-regime exemption or slab set must never silently carry into new regime.
+            reset = {field: value for field, value in (('ftp_tds_approved_deductions', 0),
+                                                       ('ftp_tds_slab_set_id', False))
+                     if field not in vals}
+            if changed and reset:
+                changed.with_context(ftp_tds_computing=True).write(reset)
         result = super().write(vals)
         triggers = {'wage', 'contract_date_start', 'contract_date_end', 'employee_id',
                     'company_id', 'ftp_tds_auto', 'ftp_tax_regime', 'ftp_tax_resident',
-                    'ftp_tds_deduction_year', 'ftp_tds_approved_deductions'}
+                    'ftp_tds_deduction_year', 'ftp_tds_approved_deductions', 'ftp_tds_slab_set_id'}
         if not self.env.context.get('ftp_tds_computing') and (
                 triggers.intersection(vals) or any(k.startswith('l10n_in_') and k != 'l10n_in_tds' for k in vals)):
             self._ftp_apply_tds()
@@ -96,6 +122,21 @@ class HrVersion(models.Model):
         start, _end = self._ftp_financial_year(on_date)
         elapsed = (on_date.year - start.year) * 12 + (on_date.month - start.month)
         return max(12 - elapsed, 1)
+
+    # ------------------------------------------------------------------
+    # Slab set
+    # ------------------------------------------------------------------
+    def _ftp_tds_slab_set(self, on_date, raise_if_missing=True):
+        """The employee's override if it covers the date, else the regime's set."""
+        self.ensure_one()
+        override = self.sudo().ftp_tds_slab_set_id
+        if (override.active and override.regime == self.ftp_tax_regime
+                and override.date_from <= on_date <= override.date_to):
+            return override
+        SlabSet = self.env['ftp.tds.slab.set']
+        if raise_if_missing:
+            return SlabSet._ftp_get(on_date, self.ftp_tax_regime, self.company_id)
+        return SlabSet._ftp_find(on_date, self.ftp_tax_regime, self.company_id)
 
     # ------------------------------------------------------------------
     # Projection
@@ -144,13 +185,15 @@ class HrVersion(models.Model):
         months_estimated = max(months_employed - months_covered, 0)
         projected_gross = gross_so_far + monthly_gross * months_estimated
 
-        deduction = min(projected_gross, standard_deduction(self.env, on_date, self.ftp_tax_regime))
+        slab_set = self._ftp_tds_slab_set(on_date)
+        deduction = min(projected_gross, standard_deduction(
+            self.env, on_date, self.ftp_tax_regime, slab_set=slab_set))
         fy_start, fy_end = self._ftp_financial_year(on_date)
         approved = self.ftp_tds_approved_deductions if self.ftp_tds_deduction_year == fy_start.year else 0
         birthday = self.employee_id.birthday
         age = relativedelta(fy_end, birthday).years if birthday else 0
         tax = annual_tax_on(self.env, projected_gross - deduction - approved, on_date,
-                            self.ftp_tax_regime, self.ftp_tax_resident, age)
+                            self.ftp_tax_regime, self.ftp_tax_resident, age, slab_set=slab_set)
         outstanding = max(tax['total_tax'] - tds_so_far, 0.0)
         monthly = self.currency_id.round(outstanding / months_left) if months_left else 0.0
         return {
@@ -238,6 +281,10 @@ class HrEmployee(models.Model):
     ftp_tds_deduction_year = fields.Integer(related='version_id.ftp_tds_deduction_year', readonly=False,
         inherited=True, groups='hr_payroll.group_hr_payroll_user')
     ftp_tds_approved_deductions = fields.Monetary(related='version_id.ftp_tds_approved_deductions', readonly=False,
+        inherited=True, groups='hr_payroll.group_hr_payroll_user')
+    ftp_tds_slab_set_id = fields.Many2one(related='version_id.ftp_tds_slab_set_id', readonly=False,
+        inherited=True, groups='hr_payroll.group_hr_payroll_user')
+    ftp_tds_slab_set_current_id = fields.Many2one(related='version_id.ftp_tds_slab_set_current_id',
         inherited=True, groups='hr_payroll.group_hr_payroll_user')
 
     def action_ftp_recompute_tds(self):

@@ -13,12 +13,26 @@
         <field name="ftp_tax_resident"/>
         <field name="ftp_tds_deduction_year"/>
         <field name="ftp_tds_approved_deductions"/>
+        <field name="ftp_tds_slab_set_current_id" invisible="not ftp_tds_auto"/>
+        <field name="ftp_tds_slab_set_id" invisible="not ftp_tds_auto" placeholder="Automatic"/>
         <button name="action_ftp_recompute_tds" type="object" string="Recompute TDS"
                 class="btn-link" invisible="not ftp_tds_auto" groups="hr_payroll.group_hr_payroll_user"/>
       </field>
       <field name="l10n_in_tds" position="attributes">
         <attribute name="readonly">ftp_tds_auto</attribute>
         <attribute name="help">Recalculated on saving payroll inputs and computing regular payslips while Automatic TDS is on. Switch it off to type a figure by hand.</attribute>
+      </field>
+    </field>
+  </record>
+
+  <record id="view_hr_payslip_form_tds" model="ir.ui.view">
+    <field name="name">hr.payslip.form.tds</field>
+    <field name="model">hr.payslip</field>
+    <field name="inherit_id" ref="hr_payroll.view_hr_payslip_form"/>
+    <field name="arch" type="xml">
+      <field name="payslip_run_id" position="after">
+        <field name="ftp_tds_slab_set_id" invisible="not ftp_tds_slab_set_id"
+               groups="hr_payroll.group_hr_payroll_user"/>
       </field>
     </field>
   </record>

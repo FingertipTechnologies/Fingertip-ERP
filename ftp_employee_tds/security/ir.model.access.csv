@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_ftp_tds_slab_set_user,ftp.tds.slab.set user,model_ftp_tds_slab_set,hr_payroll.group_hr_payroll_user,1,0,0,0
+access_ftp_tds_slab_set_manager,ftp.tds.slab.set manager,model_ftp_tds_slab_set,hr_payroll.group_hr_payroll_manager,1,1,1,1
+access_ftp_tds_slab_line_user,ftp.tds.slab.line user,model_ftp_tds_slab_line,hr_payroll.group_hr_payroll_user,1,0,0,0
+access_ftp_tds_slab_line_manager,ftp.tds.slab.line manager,model_ftp_tds_slab_line,hr_payroll.group_hr_payroll_manager,1,1,1,1
+access_ftp_tds_surcharge_line_user,ftp.tds.surcharge.line user,model_ftp_tds_surcharge_line,hr_payroll.group_hr_payroll_user,1,0,0,0
+access_ftp_tds_surcharge_line_manager,ftp.tds.surcharge.line manager,model_ftp_tds_surcharge_line,hr_payroll.group_hr_payroll_manager,1,1,1,1
+access_ftp_tds_age_exemption_user,ftp.tds.age.exemption user,model_ftp_tds_age_exemption,hr_payroll.group_hr_payroll_user,1,0,0,0
+access_ftp_tds_age_exemption_manager,ftp.tds.age.exemption manager,model_ftp_tds_age_exemption,hr_payroll.group_hr_payroll_manager,1,1,1,1

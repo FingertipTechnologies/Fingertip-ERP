@@ -34,11 +34,33 @@ Switch Automatic TDS off to retain a manually agreed amount.
 
 ## Calculation and supported scope
 
-Normal salary income for FY 2023-24 through FY 2026-27; dated old/new slabs,
-standard deduction, resident rebate, new-regime rebate marginal relief,
-surcharge marginal relief and 4% cess. Unsupported years raise an explicit
-error instead of silently reusing stale rates. Future tax changes require
-updating `models/tds_slabs.py` and the regression expectations.
+Normal salary income; dated old/new slabs, standard deduction, resident
+rebate, new-regime rebate marginal relief, surcharge marginal relief and cess.
+The rates come from TDS slab sets (below); a date no active set covers raises
+an explicit error instead of silently reusing stale rates.
+
+## TDS slab sets (19.0.3.0.0)
+
+Rates are data, not code: Payroll → Configuration → Salary → TDS Slab Sets.
+One set per regime per financial year holds the slabs, standard deduction,
+rebate limit and cap, rebate marginal relief, cess %, surcharge bands and the
+age-based 0% slab (old regime 60+/80+). FY 2023-24 to FY 2026-27 are loaded
+as `noupdate` data, identical to the figures hard-coded up to 19.0.2.0.1; the
+original regression tests pass unchanged against them.
+
+- **New financial year / Budget change:** duplicate last year's set (copies
+  start archived), change dates and rates, then activate it. No code release.
+- **Automatic pick:** the active set covering the payslip month for the
+  employee's regime. A company-specific set beats a shared (no company) one.
+  Active automatic sets of the same regime and company may not overlap.
+- **Employee exceptions:** tick *Only for Assigned Employees* on a set and pick
+  it as the employee's *Override TDS Slab Set*. It applies only for its dates;
+  a regime change clears it. *TDS Slab Set in Use* shows today's set.
+- **Audit and lock:** each regular payslip records the set that worked out its
+  TDS. Once such a payslip is validated, the set's rates are frozen (name,
+  notes and archiving remain editable); correct it by copy-and-replace.
+- **Still code:** the formulas — slab arithmetic, rebate and surcharge marginal
+  relief, statutory ₹10 rounding. A new *kind* of rule needs a release.
 
 Projection = finalized prior-month GROSS in this company plus current monthly
 gross for uncovered employment months. Prior-month finalized TDS is deducted

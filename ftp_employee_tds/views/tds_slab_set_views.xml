@@ -1,0 +1,147 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+  <record id="ftp_tds_slab_set_view_list" model="ir.ui.view">
+    <field name="name">ftp.tds.slab.set.list</field>
+    <field name="model">ftp.tds.slab.set</field>
+    <field name="arch" type="xml">
+      <list>
+        <field name="name"/>
+        <field name="regime"/>
+        <field name="date_from"/>
+        <field name="date_to"/>
+        <field name="company_id" groups="base.group_multi_company" optional="show"/>
+        <field name="currency_id" column_invisible="True"/>
+        <field name="standard_deduction" optional="show"/>
+        <field name="rebate_income_limit" optional="show"/>
+        <field name="cess_rate" optional="hide"/>
+        <field name="employee_only" optional="show"/>
+        <field name="active" column_invisible="True"/>
+      </list>
+    </field>
+  </record>
+
+  <record id="ftp_tds_slab_set_view_form" model="ir.ui.view">
+    <field name="name">ftp.tds.slab.set.form</field>
+    <field name="model">ftp.tds.slab.set</field>
+    <field name="arch" type="xml">
+      <form>
+        <sheet>
+          <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+          <div class="alert alert-info" role="alert" invisible="not is_locked">
+            Validated payslips were computed with this set, so its rates can no longer change.
+            To correct them, duplicate this set, adjust the copy, archive this one and activate the copy.
+          </div>
+          <div class="oe_title">
+            <label for="name"/>
+            <h1><field name="name" placeholder="e.g. FY 2027-28 – New Regime"/></h1>
+          </div>
+          <group>
+            <group string="Applies to">
+              <field name="regime" readonly="is_locked"/>
+              <field name="date_from" readonly="is_locked"/>
+              <field name="date_to" readonly="is_locked"/>
+              <field name="company_id" groups="base.group_multi_company" readonly="is_locked"
+                     placeholder="All companies"/>
+              <field name="employee_only" readonly="is_locked"/>
+              <field name="currency_id" invisible="1"/>
+              <field name="active" invisible="1"/>
+              <field name="is_locked" invisible="1"/>
+            </group>
+            <group string="Deduction, rebate and cess">
+              <field name="standard_deduction" readonly="is_locked"/>
+              <field name="rebate_income_limit" readonly="is_locked"/>
+              <field name="rebate_max" readonly="is_locked"/>
+              <field name="rebate_marginal_relief" readonly="is_locked"/>
+              <field name="rebate_residents_only" readonly="is_locked"/>
+              <field name="cess_rate" readonly="is_locked"/>
+            </group>
+          </group>
+          <notebook>
+            <page string="Slabs" name="slabs">
+              <field name="line_ids" readonly="is_locked">
+                <list editable="bottom">
+                  <field name="currency_id" column_invisible="True"/>
+                  <field name="amount_from"/>
+                  <field name="amount_to"/>
+                  <field name="rate"/>
+                </list>
+              </field>
+              <p class="text-muted">
+                Start at 0, let each slab begin where the previous one ends, and leave
+                "Income Up To" empty on the last slab.
+              </p>
+            </page>
+            <page string="Surcharge" name="surcharge">
+              <field name="surcharge_ids" readonly="is_locked">
+                <list editable="bottom">
+                  <field name="currency_id" column_invisible="True"/>
+                  <field name="income_above"/>
+                  <field name="rate"/>
+                </list>
+              </field>
+              <p class="text-muted">
+                The highest band the taxable income exceeds applies; marginal relief is applied
+                automatically at each band.
+              </p>
+            </page>
+            <page string="Age Exemptions" name="age_exemptions">
+              <field name="age_exemption_ids" readonly="is_locked">
+                <list editable="bottom">
+                  <field name="currency_id" column_invisible="True"/>
+                  <field name="min_age"/>
+                  <field name="zero_rate_upto"/>
+                  <field name="residents_only"/>
+                </list>
+              </field>
+              <p class="text-muted">
+                Raises the 0% slab for employees of this age or older at the end of the financial
+                year (old regime: 60 and 80). The highest matching age applies.
+              </p>
+            </page>
+            <page string="Notes" name="notes">
+              <field name="note" placeholder="Source of these rates, e.g. Finance Act and section references"/>
+            </page>
+          </notebook>
+        </sheet>
+        <chatter/>
+      </form>
+    </field>
+  </record>
+
+  <record id="ftp_tds_slab_set_view_search" model="ir.ui.view">
+    <field name="name">ftp.tds.slab.set.search</field>
+    <field name="model">ftp.tds.slab.set</field>
+    <field name="arch" type="xml">
+      <search>
+        <field name="name"/>
+        <field name="company_id" groups="base.group_multi_company"/>
+        <filter name="new_regime" string="New Regime" domain="[('regime', '=', 'new')]"/>
+        <filter name="old_regime" string="Old Regime" domain="[('regime', '=', 'old')]"/>
+        <separator/>
+        <filter name="automatic" string="Picked Automatically" domain="[('employee_only', '=', False)]"/>
+        <filter name="employee_only" string="Only for Assigned Employees" domain="[('employee_only', '=', True)]"/>
+        <separator/>
+        <filter name="archived" string="Archived" domain="[('active', '=', False)]"/>
+        <separator/>
+        <filter name="group_regime" string="Regime" context="{'group_by': 'regime'}"/>
+      </search>
+    </field>
+  </record>
+
+  <record id="ftp_tds_slab_set_action" model="ir.actions.act_window">
+    <field name="name">TDS Slab Sets</field>
+    <field name="res_model">ftp.tds.slab.set</field>
+    <field name="view_mode">list,form</field>
+    <field name="help" type="html">
+      <p class="o_view_nocontent_smiling_face">Add the income-tax slabs for a financial year</p>
+      <p>One set per regime per financial year. Automatic TDS picks the set that covers the
+         payslip month for the employee's tax regime.</p>
+    </field>
+  </record>
+
+  <menuitem id="menu_ftp_tds_slab_set"
+            name="TDS Slab Sets"
+            action="ftp_tds_slab_set_action"
+            parent="hr_payroll.menu_hr_salary_configuration"
+            sequence="40"/>
+</odoo>

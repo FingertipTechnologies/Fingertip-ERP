@@ -1,0 +1,201 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo noupdate="1">
+  <!-- Salary-income tax rates for FY 2023-24 to FY 2026-27, exactly as they
+       were hard-coded up to version 19.0.2.0.1 (sources in README.md).
+       noupdate: once loaded these belong to HR; a module upgrade never
+       overwrites them. Add new years from Payroll > Configuration. -->
+
+  <record id="tds_slab_set_new_2023" model="ftp.tds.slab.set">
+    <field name="name">FY 2023-24 – New Regime</field>
+    <field name="regime">new</field>
+    <field name="date_from">2023-04-01</field>
+    <field name="date_to">2024-03-31</field>
+    <field name="standard_deduction">50000</field>
+    <field name="rebate_income_limit">700000</field>
+    <field name="rebate_max">25000</field>
+    <field name="rebate_marginal_relief" eval="True"/>
+    <field name="cess_rate">4</field>
+    <field name="line_ids" eval="[
+                Command.create({'amount_from': 0, 'amount_to': 300000, 'rate': 0}),
+                Command.create({'amount_from': 300000, 'amount_to': 600000, 'rate': 5}),
+                Command.create({'amount_from': 600000, 'amount_to': 900000, 'rate': 10}),
+                Command.create({'amount_from': 900000, 'amount_to': 1200000, 'rate': 15}),
+                Command.create({'amount_from': 1200000, 'amount_to': 1500000, 'rate': 20}),
+                Command.create({'amount_from': 1500000, 'amount_to': 0, 'rate': 30})]"/>
+    <field name="surcharge_ids" eval="[
+                Command.create({'income_above': 5000000, 'rate': 10}),
+                Command.create({'income_above': 10000000, 'rate': 15}),
+                Command.create({'income_above': 20000000, 'rate': 25})]"/>
+  </record>
+
+  <record id="tds_slab_set_old_2023" model="ftp.tds.slab.set">
+    <field name="name">FY 2023-24 – Old Regime</field>
+    <field name="regime">old</field>
+    <field name="date_from">2023-04-01</field>
+    <field name="date_to">2024-03-31</field>
+    <field name="standard_deduction">50000</field>
+    <field name="rebate_income_limit">500000</field>
+    <field name="rebate_max">12500</field>
+    <field name="rebate_marginal_relief" eval="False"/>
+    <field name="cess_rate">4</field>
+    <field name="line_ids" eval="[
+                Command.create({'amount_from': 0, 'amount_to': 250000, 'rate': 0}),
+                Command.create({'amount_from': 250000, 'amount_to': 500000, 'rate': 5}),
+                Command.create({'amount_from': 500000, 'amount_to': 1000000, 'rate': 20}),
+                Command.create({'amount_from': 1000000, 'amount_to': 0, 'rate': 30})]"/>
+    <field name="surcharge_ids" eval="[
+                Command.create({'income_above': 5000000, 'rate': 10}),
+                Command.create({'income_above': 10000000, 'rate': 15}),
+                Command.create({'income_above': 20000000, 'rate': 25}),
+                Command.create({'income_above': 50000000, 'rate': 37})]"/>
+    <field name="age_exemption_ids" eval="[
+                Command.create({'min_age': 60, 'zero_rate_upto': 300000}),
+                Command.create({'min_age': 80, 'zero_rate_upto': 500000})]"/>
+  </record>
+
+  <record id="tds_slab_set_new_2024" model="ftp.tds.slab.set">
+    <field name="name">FY 2024-25 – New Regime</field>
+    <field name="regime">new</field>
+    <field name="date_from">2024-04-01</field>
+    <field name="date_to">2025-03-31</field>
+    <field name="standard_deduction">75000</field>
+    <field name="rebate_income_limit">700000</field>
+    <field name="rebate_max">25000</field>
+    <field name="rebate_marginal_relief" eval="True"/>
+    <field name="cess_rate">4</field>
+    <field name="line_ids" eval="[
+                Command.create({'amount_from': 0, 'amount_to': 300000, 'rate': 0}),
+                Command.create({'amount_from': 300000, 'amount_to': 700000, 'rate': 5}),
+                Command.create({'amount_from': 700000, 'amount_to': 1000000, 'rate': 10}),
+                Command.create({'amount_from': 1000000, 'amount_to': 1200000, 'rate': 15}),
+                Command.create({'amount_from': 1200000, 'amount_to': 1500000, 'rate': 20}),
+                Command.create({'amount_from': 1500000, 'amount_to': 0, 'rate': 30})]"/>
+    <field name="surcharge_ids" eval="[
+                Command.create({'income_above': 5000000, 'rate': 10}),
+                Command.create({'income_above': 10000000, 'rate': 15}),
+                Command.create({'income_above': 20000000, 'rate': 25})]"/>
+  </record>
+
+  <record id="tds_slab_set_old_2024" model="ftp.tds.slab.set">
+    <field name="name">FY 2024-25 – Old Regime</field>
+    <field name="regime">old</field>
+    <field name="date_from">2024-04-01</field>
+    <field name="date_to">2025-03-31</field>
+    <field name="standard_deduction">50000</field>
+    <field name="rebate_income_limit">500000</field>
+    <field name="rebate_max">12500</field>
+    <field name="rebate_marginal_relief" eval="False"/>
+    <field name="cess_rate">4</field>
+    <field name="line_ids" eval="[
+                Command.create({'amount_from': 0, 'amount_to': 250000, 'rate': 0}),
+                Command.create({'amount_from': 250000, 'amount_to': 500000, 'rate': 5}),
+                Command.create({'amount_from': 500000, 'amount_to': 1000000, 'rate': 20}),
+                Command.create({'amount_from': 1000000, 'amount_to': 0, 'rate': 30})]"/>
+    <field name="surcharge_ids" eval="[
+                Command.create({'income_above': 5000000, 'rate': 10}),
+                Command.create({'income_above': 10000000, 'rate': 15}),
+                Command.create({'income_above': 20000000, 'rate': 25}),
+                Command.create({'income_above': 50000000, 'rate': 37})]"/>
+    <field name="age_exemption_ids" eval="[
+                Command.create({'min_age': 60, 'zero_rate_upto': 300000}),
+                Command.create({'min_age': 80, 'zero_rate_upto': 500000})]"/>
+  </record>
+
+  <record id="tds_slab_set_new_2025" model="ftp.tds.slab.set">
+    <field name="name">FY 2025-26 – New Regime</field>
+    <field name="regime">new</field>
+    <field name="date_from">2025-04-01</field>
+    <field name="date_to">2026-03-31</field>
+    <field name="standard_deduction">75000</field>
+    <field name="rebate_income_limit">1200000</field>
+    <field name="rebate_max">60000</field>
+    <field name="rebate_marginal_relief" eval="True"/>
+    <field name="cess_rate">4</field>
+    <field name="line_ids" eval="[
+                Command.create({'amount_from': 0, 'amount_to': 400000, 'rate': 0}),
+                Command.create({'amount_from': 400000, 'amount_to': 800000, 'rate': 5}),
+                Command.create({'amount_from': 800000, 'amount_to': 1200000, 'rate': 10}),
+                Command.create({'amount_from': 1200000, 'amount_to': 1600000, 'rate': 15}),
+                Command.create({'amount_from': 1600000, 'amount_to': 2000000, 'rate': 20}),
+                Command.create({'amount_from': 2000000, 'amount_to': 2400000, 'rate': 25}),
+                Command.create({'amount_from': 2400000, 'amount_to': 0, 'rate': 30})]"/>
+    <field name="surcharge_ids" eval="[
+                Command.create({'income_above': 5000000, 'rate': 10}),
+                Command.create({'income_above': 10000000, 'rate': 15}),
+                Command.create({'income_above': 20000000, 'rate': 25})]"/>
+  </record>
+
+  <record id="tds_slab_set_old_2025" model="ftp.tds.slab.set">
+    <field name="name">FY 2025-26 – Old Regime</field>
+    <field name="regime">old</field>
+    <field name="date_from">2025-04-01</field>
+    <field name="date_to">2026-03-31</field>
+    <field name="standard_deduction">50000</field>
+    <field name="rebate_income_limit">500000</field>
+    <field name="rebate_max">12500</field>
+    <field name="rebate_marginal_relief" eval="False"/>
+    <field name="cess_rate">4</field>
+    <field name="line_ids" eval="[
+                Command.create({'amount_from': 0, 'amount_to': 250000, 'rate': 0}),
+                Command.create({'amount_from': 250000, 'amount_to': 500000, 'rate': 5}),
+                Command.create({'amount_from': 500000, 'amount_to': 1000000, 'rate': 20}),
+                Command.create({'amount_from': 1000000, 'amount_to': 0, 'rate': 30})]"/>
+    <field name="surcharge_ids" eval="[
+                Command.create({'income_above': 5000000, 'rate': 10}),
+                Command.create({'income_above': 10000000, 'rate': 15}),
+                Command.create({'income_above': 20000000, 'rate': 25}),
+                Command.create({'income_above': 50000000, 'rate': 37})]"/>
+    <field name="age_exemption_ids" eval="[
+                Command.create({'min_age': 60, 'zero_rate_upto': 300000}),
+                Command.create({'min_age': 80, 'zero_rate_upto': 500000})]"/>
+  </record>
+
+  <record id="tds_slab_set_new_2026" model="ftp.tds.slab.set">
+    <field name="name">FY 2026-27 – New Regime</field>
+    <field name="regime">new</field>
+    <field name="date_from">2026-04-01</field>
+    <field name="date_to">2027-03-31</field>
+    <field name="standard_deduction">75000</field>
+    <field name="rebate_income_limit">1200000</field>
+    <field name="rebate_max">60000</field>
+    <field name="rebate_marginal_relief" eval="True"/>
+    <field name="cess_rate">4</field>
+    <field name="line_ids" eval="[
+                Command.create({'amount_from': 0, 'amount_to': 400000, 'rate': 0}),
+                Command.create({'amount_from': 400000, 'amount_to': 800000, 'rate': 5}),
+                Command.create({'amount_from': 800000, 'amount_to': 1200000, 'rate': 10}),
+                Command.create({'amount_from': 1200000, 'amount_to': 1600000, 'rate': 15}),
+                Command.create({'amount_from': 1600000, 'amount_to': 2000000, 'rate': 20}),
+                Command.create({'amount_from': 2000000, 'amount_to': 2400000, 'rate': 25}),
+                Command.create({'amount_from': 2400000, 'amount_to': 0, 'rate': 30})]"/>
+    <field name="surcharge_ids" eval="[
+                Command.create({'income_above': 5000000, 'rate': 10}),
+                Command.create({'income_above': 10000000, 'rate': 15}),
+                Command.create({'income_above': 20000000, 'rate': 25})]"/>
+  </record>
+
+  <record id="tds_slab_set_old_2026" model="ftp.tds.slab.set">
+    <field name="name">FY 2026-27 – Old Regime</field>
+    <field name="regime">old</field>
+    <field name="date_from">2026-04-01</field>
+    <field name="date_to">2027-03-31</field>
+    <field name="standard_deduction">50000</field>
+    <field name="rebate_income_limit">500000</field>
+    <field name="rebate_max">12500</field>
+    <field name="rebate_marginal_relief" eval="False"/>
+    <field name="cess_rate">4</field>
+    <field name="line_ids" eval="[
+                Command.create({'amount_from': 0, 'amount_to': 250000, 'rate': 0}),
+                Command.create({'amount_from': 250000, 'amount_to': 500000, 'rate': 5}),
+                Command.create({'amount_from': 500000, 'amount_to': 1000000, 'rate': 20}),
+                Command.create({'amount_from': 1000000, 'amount_to': 0, 'rate': 30})]"/>
+    <field name="surcharge_ids" eval="[
+                Command.create({'income_above': 5000000, 'rate': 10}),
+                Command.create({'income_above': 10000000, 'rate': 15}),
+                Command.create({'income_above': 20000000, 'rate': 25}),
+                Command.create({'income_above': 50000000, 'rate': 37})]"/>
+    <field name="age_exemption_ids" eval="[
+                Command.create({'min_age': 60, 'zero_rate_upto': 300000}),
+                Command.create({'min_age': 80, 'zero_rate_upto': 500000})]"/>
+  </record>
+</odoo>

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from . import tds_slab_set
 from . import tds_slabs
 from . import res_company
 from . import res_config_settings
