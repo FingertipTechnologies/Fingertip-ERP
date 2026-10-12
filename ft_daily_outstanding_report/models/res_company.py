@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from datetime import datetime
 
 import pytz
 from markupsafe import Markup
@@ -12,6 +13,7 @@ _logger = logging.getLogger(__name__)
 
 RECENT_PAYMENTS = 20
 SOURCE_LABELS = {'payment': 'Payment', 'bank': 'Bank'}
+INDIA_TZ = pytz.timezone('Asia/Kolkata')
 
 
 class ResCompany(models.Model):
@@ -38,9 +40,31 @@ class ResCompany(models.Model):
                     'Enter one valid address in the Email field of these contacts: %(contacts)s',
                     contacts=', '.join(invalid.mapped('display_name'))))
 
-    def _outstanding_rows(self, model, domain, balance_field):
+    @api.model
+    def _india_date(self, value):
+        """Calendar date of a date or datetime (stored in UTC) in India time."""
+        if isinstance(value, datetime):
+            return value.replace(tzinfo=pytz.UTC).astimezone(INDIA_TZ).date()
+        return value or False
+
+    @api.model
+    def _aging_label(self, oldest, report_date):
+        """Days the oldest outstanding document has been open on report_date."""
+        if not oldest:
+            return ''
+        days = (report_date - oldest).days
+        return _('Not due') if days < 0 else str(days)
+
+    def _outstanding_rows(self, model, domain, balance_field, date_fields=()):
+        """Outstanding totals per commercial customer and currency.
+
+        ``date_fields`` names the document dates the aging is measured from;
+        the first one that is set on a document wins (e.g. due date, then
+        invoice date). Each row carries ``oldest``: the earliest such date
+        over the customer's outstanding documents, or False.
+        """
         self.ensure_one()
-        totals = defaultdict(lambda: [0.0, 0.0])
+        totals = defaultdict(lambda: [0.0, 0.0, False])
         records = self.env[model].sudo().with_company(self).search(
             [('company_id', '=', self.id)] + domain)
         for record in records:
@@ -50,8 +74,12 @@ class ResCompany(models.Model):
             key = (record.partner_id.commercial_partner_id, record.currency_id)
             totals[key][0] += record.amount_total
             totals[key][1] += balance
+            dated = next((self._india_date(record[name]) for name in date_fields
+                          if record[name]), False)
+            if dated and (not totals[key][2] or dated < totals[key][2]):
+                totals[key][2] = dated
         return [dict(partner=partner, currency=currency, total=amounts[0],
-                     outstanding=amounts[1])
+                     outstanding=amounts[1], oldest=amounts[2])
                 for (partner, currency), amounts in sorted(
                     totals.items(), key=lambda item: (
                         -item[1][1], item[0][0].name or '',
@@ -125,37 +153,43 @@ class ResCompany(models.Model):
         self.ensure_one()
         sections = [
             ('Pro Forma', self._outstanding_rows('sale.order',
-                [('state', 'in', ['draft', 'sent', 'sale'])], 'balance_amount')),
+                [('state', 'in', ['draft', 'sent', 'sale'])], 'balance_amount',
+                ('date_order',))),
             ('Invoices', self._outstanding_rows('account.move',
                 [('state', '=', 'posted'), ('move_type', '=', 'out_invoice'),
-                 ('amount_residual', '>', 0)], 'amount_residual')),
+                 ('amount_residual', '>', 0)], 'amount_residual',
+                ('invoice_date_due', 'invoice_date'))),
         ]
         body = Markup('<h2>Daily Outstanding Report</h2><p>%s — %s (India time)</p>') % (
             self.name, str(report_date))
         for title, rows in sections:
             body += Markup('<h3>%s</h3><table border="1" cellpadding="8" '
                            'cellspacing="0" style="border-collapse:collapse;width:100%%;table-layout:fixed">'
-                           '<tr><th style="width:40%%;text-align:left">Customer Name</th>'
-                           '<th style="width:30%%">Total Amount</th>'
-                           '<th style="width:30%%">Outstanding Amount</th></tr>') % title
+                           '<tr><th style="width:37%%;text-align:left">Customer Name</th>'
+                           '<th style="width:22%%">Total Amount</th>'
+                           '<th style="width:22%%">Outstanding Amount</th>'
+                           '<th style="width:19%%">Aging (days)</th></tr>') % title
             totals = defaultdict(lambda: [0.0, 0.0])
             for row in rows:
                 currency = row['currency']
                 body += Markup('<tr><td style="overflow-wrap:anywhere;word-wrap:break-word">%s</td>'
                                '<td align="right">%s</td>'
+                               '<td align="right">%s</td>'
                                '<td align="right">%s</td></tr>') % (
                     row['partner'].name,
                     format_amount(self.env, row['total'], currency),
-                    format_amount(self.env, row['outstanding'], currency))
+                    format_amount(self.env, row['outstanding'], currency),
+                    self._aging_label(row['oldest'], report_date))
                 totals[currency][0] += row['total']
                 totals[currency][1] += row['outstanding']
             for currency, amounts in totals.items():
-                body += Markup('<tr><th style="text-align:left">%s</th><th>%s</th><th>%s</th></tr>') % (
+                body += Markup('<tr><th style="text-align:left">%s</th><th>%s</th><th>%s</th>'
+                               '<th></th></tr>') % (
                     ('Total (%s)' % currency.name) if len(totals) > 1 else 'Total',
                     format_amount(self.env, amounts[0], currency),
                     format_amount(self.env, amounts[1], currency))
             if not rows:
-                body += Markup('<tr><td colspan="3">No outstanding amounts.</td></tr>')
+                body += Markup('<tr><td colspan="4">No outstanding amounts.</td></tr>')
             body += Markup('</table>')
         receipts = self._recent_receipt_rows()
         body += Markup('<h3>Recent Payments</h3><table border="1" cellpadding="8" '
@@ -181,6 +215,10 @@ class ResCompany(models.Model):
         return body + Markup('<p>Totals include only documents with a positive outstanding '
                              'balance. Pro forma: Total / ProForma Balance; '
                              'posted customer invoices: Total / Amount Due. '
+                             'Aging (days): days from the customer\'s oldest outstanding '
+                             'document to the report date, counted from the invoice due date '
+                             '(invoice date when there is none) and from the pro forma order '
+                             'date; "Not due" when nothing has fallen due yet. '
                              'Recent Payments: the %s most recent customer receipts, newest '
                              'first: registered payments and incoming bank transactions that '
                              'are matched to invoices or still awaiting reconciliation. A bank '
@@ -190,8 +228,7 @@ class ResCompany(models.Model):
 
     @api.model
     def _cron_daily_outstanding_report(self):
-        now = fields.Datetime.now().replace(tzinfo=pytz.UTC).astimezone(
-            pytz.timezone('Asia/Kolkata'))
+        now = fields.Datetime.now().replace(tzinfo=pytz.UTC).astimezone(INDIA_TZ)
         if now.hour < 8:
             return
         for company in self.sudo().search([('daily_outstanding_enabled', '=', True)]):

@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from unittest.mock import patch
 
 from odoo.exceptions import ValidationError
@@ -167,3 +167,59 @@ class TestDailyOutstanding(TransactionCase):
         settings.set_values()
         self.assertTrue(company.daily_outstanding_enabled)
         self.assertEqual(company.daily_outstanding_partner_ids, partner)
+
+    def test_aging_column(self):
+        company = self.env.company
+        # Future-dated so no fiscal lock date in the database can block posting.
+        report_date = date.today() + timedelta(days=200)
+        receivable = self.env['account.account'].search(
+            [('account_type', '=', 'asset_receivable'), ('company_ids', 'in', company.id)], limit=1)
+        income = self.env['account.account'].search(
+            [('account_type', '=', 'income'), ('company_ids', 'in', company.id)], limit=1)
+        partner, fresh = self.env['res.partner'].create([
+            {'name': 'Aging Customer', 'email': 'aging@example.com'},
+            {'name': 'Fresh Customer', 'email': 'fresh@example.com'}])
+        (partner | fresh).with_company(company).property_account_receivable_id = receivable
+
+        def invoice(customer, days, amount):
+            move = self.env['account.move'].create({
+                'move_type': 'out_invoice', 'partner_id': customer.id, 'company_id': company.id,
+                # Odoo 19 sets a missing due date to today, so give it explicitly.
+                'invoice_date': report_date - timedelta(days=days),
+                'invoice_date_due': report_date - timedelta(days=days), 'invoice_payment_term_id': False,
+                'invoice_line_ids': [(0, 0, {'name': 'Service', 'quantity': 1, 'price_unit': amount,
+                                             'account_id': income.id, 'tax_ids': [(5, 0, 0)]})]})
+            move.action_post()
+            return move
+
+        old, recent, not_due = invoice(partner, 95, 500), invoice(partner, 10, 300), invoice(fresh, 2, 200)
+        not_due.invoice_date_due = report_date + timedelta(days=10)
+        domain = [('state', '=', 'posted'), ('move_type', '=', 'out_invoice'),
+                  ('amount_residual', '>', 0), ('id', 'in', (old | recent | not_due).ids)]
+        dates = ('invoice_date_due', 'invoice_date')
+        rows = {row['partner']: row for row in company._outstanding_rows('account.move', domain, 'amount_residual', dates)}
+        self.assertEqual(rows[partner]['total'], 800)
+        self.assertEqual(rows[partner]['oldest'], report_date - timedelta(days=95))
+        self.assertEqual(company._aging_label(rows[partner]['oldest'], report_date), '95')
+        self.assertEqual(company._aging_label(rows[fresh]['oldest'], report_date), 'Not due')
+        # The due date drives the age, not the invoice date.
+        old.invoice_date_due = report_date - timedelta(days=30)
+        rows = {row['partner']: row for row in company._outstanding_rows('account.move', domain, 'amount_residual', dates)}
+        self.assertEqual(company._aging_label(rows[partner]['oldest'], report_date), '30')
+        # Pro forma ages from the order date, read on the India calendar.
+        product = self.env['product.product'].create({'name': 'Aging Service', 'type': 'service'})
+        order = self.env['sale.order'].create({
+            'partner_id': partner.id, 'company_id': company.id,
+            'date_order': datetime.combine(report_date - timedelta(days=40), time(20, 0)),  # 01:30 IST next day
+            'order_line': [(0, 0, {'product_id': product.id, 'product_uom_qty': 1,
+                                  'price_unit': 100, 'tax_ids': [(5, 0, 0)]})]})
+        rows = company._outstanding_rows('sale.order',
+            [('state', 'in', ['draft', 'sent', 'sale']), ('id', '=', order.id)], 'balance_amount', ('date_order',))
+        self.assertEqual(rows[0]['oldest'], report_date - timedelta(days=39))
+        self.assertEqual(company._aging_label(rows[0]['oldest'], report_date), '39')
+        self.assertEqual(company._aging_label(False, report_date), '')
+        body = str(company._daily_outstanding_body(report_date))
+        self.assertEqual(body.count('<th style="width:19%">Aging (days)</th>'), 2)  # Pro Forma and Invoices
+        self.assertIn('<td align="right">30</td>', body)
+        self.assertIn('<td align="right">Not due</td>', body)
+        self.assertIn('<td align="right">39</td>', body)

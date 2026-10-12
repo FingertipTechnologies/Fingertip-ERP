@@ -35,6 +35,13 @@ Currencies have separate totals. Empty sections show “No outstanding amounts.�
   Date, Source, Number, Customer (commercial partner, or the bank's partner name),
   Memo, Amount. No total row. Shows “No payments recorded.” when empty.
 
+Aging (19.0.1.3.0): both outstanding tables carry an Aging (days) column: the
+number of days between the report date (India) and the customer's oldest
+outstanding document. Invoices age from the due date (the invoice date when there
+is none); pro forma documents age from the order date, read on the India
+calendar. A customer whose documents have not fallen due yet shows "Not due". The
+totals row leaves the column empty.
+
 No changes are made to payments, balances, or accounting entries.
 
 Install with the parent fingertip_accounting_addons directory on addons_path:
