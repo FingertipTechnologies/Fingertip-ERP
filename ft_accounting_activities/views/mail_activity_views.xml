@@ -8,8 +8,7 @@
         <field name="mode">primary</field>
         <field name="arch" type="xml">
             <list string="Activity Log" default_order="ft_activity_date desc, id desc"
-                  action="action_open_document" type="object"
-                  create="0" js_class="archive_disabled_activity_list"
+                  js_class="archive_disabled_activity_list"
                   decoration-muted="not active">
                 <field name="active" column_invisible="1"/>
                 <field name="ft_activity_date"/>
@@ -30,6 +29,61 @@
                        decoration-info="state == 'planned'"
                        decoration-success="state == 'done'"/>
             </list>
+        </field>
+    </record>
+
+    <!-- Opened from a log line or New; done activities are archived and read-only -->
+    <record id="mail_activity_view_form_accounting" model="ir.ui.view">
+        <field name="name">mail.activity.view.form.accounting</field>
+        <field name="model">mail.activity</field>
+        <field name="priority">40</field>
+        <field name="arch" type="xml">
+            <form string="Activity" duplicate="0">
+                <header>
+                    <button name="action_open_document" type="object" string="Open Document"
+                            class="btn-secondary" invisible="not id"/>
+                    <field name="state" widget="badge" invisible="not id"
+                           decoration-danger="state == 'overdue'"
+                           decoration-warning="state == 'today'"
+                           decoration-info="state == 'planned'"
+                           decoration-success="state == 'done'"/>
+                </header>
+                <sheet>
+                    <field name="active" invisible="1"/>
+                    <field name="res_model" invisible="1"/>
+                    <field name="res_id" invisible="1"/>
+                    <div class="oe_title">
+                        <h1><field name="summary" placeholder="e.g. Payment follow-up"
+                                   readonly="not active"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="res_model_id" invisible="1"/>
+                            <field name="ft_res_model" readonly="id" required="not id"
+                                   placeholder="Sales Order, Invoice, Payment or Customer"/>
+                            <field name="ft_res_id" widget="many2one_reference" readonly="id"
+                                   required="not id" placeholder="Pick the document"
+                                   options="{'no_create': True}"/>
+                            <field name="ft_partner_id"/>
+                            <field name="ft_document_type"/>
+                            <field name="activity_type_id" required="1" readonly="not active"
+                                   domain="[('res_model', 'in', [False, 'sale.order', 'account.move', 'account.payment', 'res.partner'])]"/>
+                        </group>
+                        <group>
+                            <field name="date_deadline" string="Due Date" readonly="not active"/>
+                            <field name="date_done" invisible="active"/>
+                            <field name="user_id" string="Assigned To" widget="many2one_avatar_user"
+                                   readonly="not active"/>
+                            <field name="create_uid" string="Created By" widget="many2one_avatar_user"/>
+                        </group>
+                    </group>
+                    <separator string="Description"/>
+                    <field name="note" class="oe-bordered-editor" readonly="not active"
+                           options="{'embedded_components': false}"/>
+                    <separator string="Remark" invisible="active"/>
+                    <field name="feedback" invisible="active" readonly="1"/>
+                </sheet>
+            </form>
         </field>
     </record>
 
@@ -129,16 +183,17 @@
     <record id="action_accounting_activities_view_form" model="ir.actions.act_window.view">
         <field name="sequence" eval="5"/>
         <field name="view_mode">form</field>
-        <field name="view_id" ref="mail.mail_activity_view_form"/>
+        <field name="view_id" ref="mail_activity_view_form_accounting"/>
         <field name="act_window_id" ref="action_accounting_activities"/>
     </record>
 
-    <!-- Vendors is sequence 3 and Accounting 4: same sequence as Vendors and a
-         higher id puts this menu between them -->
+    <!-- Sales top menu: To Invoice is sequence 20 and Products 30. Menu groups
+         are only added on upgrade, so the former Accounting groups are removed
+         explicitly -->
     <menuitem id="menu_accounting_activities"
               name="Activities"
-              parent="accountant.menu_accounting"
+              parent="sale.sale_menu_root"
               action="action_accounting_activities"
-              groups="account.group_account_invoice,account.group_account_readonly"
-              sequence="3"/>
+              groups="sales_team.group_sale_salesman,-account.group_account_invoice,-account.group_account_readonly"
+              sequence="25"/>
 </odoo>

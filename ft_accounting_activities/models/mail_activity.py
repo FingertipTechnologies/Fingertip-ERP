@@ -29,6 +29,21 @@ class MailActivity(models.Model):
         'res.partner', string='Customer',
         compute='_compute_ft_partner_id', store=True, index='btree_not_null',
     )
+    # Related Model / Related Document pickers for activities created from the
+    # Activities menu; they mirror res_model / res_id
+    ft_res_model = fields.Selection(
+        [
+            ('sale.order', 'Sales Order / Pro forma'),
+            ('account.move', 'Invoice / Bill'),
+            ('account.payment', 'Payment'),
+            ('res.partner', 'Customer'),
+        ],
+        string='Related Model', compute='_compute_ft_res_model', readonly=False,
+    )
+    ft_res_id = fields.Many2oneReference(
+        string='Related Document', model_field='ft_res_model',
+        compute='_compute_ft_res_id', readonly=False,
+    )
     ft_activity_date = fields.Date(
         string='Date', compute='_compute_ft_activity_date', store=True, index=True,
         help='Done date for completed activities, due date for pending ones.',
@@ -45,6 +60,42 @@ class MailActivity(models.Model):
                 elif record:
                     partner = record.partner_id
             activity.ft_partner_id = partner.commercial_partner_id or partner
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # the document must be set before create: access checks, follower
+        # subscription and assignee notification all rely on it
+        for vals in vals_list:
+            model = vals.pop('ft_res_model', False)
+            res_id = vals.pop('ft_res_id', False)
+            if model and res_id and not vals.get('res_model_id'):
+                vals['res_model_id'] = self.env['ir.model']._get_id(model)
+                vals['res_id'] = res_id
+        return super().create(vals_list)
+
+    @api.depends('res_model')
+    def _compute_ft_res_model(self):
+        for activity in self:
+            activity.ft_res_model = (
+                activity.res_model if activity.res_model in ACCOUNTING_ACTIVITY_MODELS else False)
+
+    @api.depends('res_model', 'res_id')
+    def _compute_ft_res_id(self):
+        for activity in self:
+            activity.ft_res_id = activity.res_id if activity.ft_res_model else False
+
+    @api.onchange('ft_res_model')
+    def _onchange_ft_res_model(self):
+        # a new model invalidates the document picked for the previous one
+        if self.ft_res_model != self.res_model:
+            self.res_model_id = self.env['ir.model']._get(self.ft_res_model) if self.ft_res_model else False
+            self.res_id = False
+            self.ft_res_id = False
+
+    @api.onchange('ft_res_id')
+    def _onchange_ft_res_id(self):
+        # link the document right away so the customer is filled in before saving
+        self.res_id = self.ft_res_id
 
     @api.depends('date_done', 'date_deadline')
     def _compute_ft_activity_date(self):
