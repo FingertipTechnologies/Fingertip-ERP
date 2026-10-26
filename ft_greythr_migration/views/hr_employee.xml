@@ -31,7 +31,7 @@
              and editing salary stays where it always was. -->
         <group string="Annual CTC Breakup" groups="hr_payroll.group_hr_payroll_user">
           <group string="Yearly">
-            <field name="ft_annual_gross" string="Fixed Pay"/>
+            <field name="ft_annual_fixed_pay" string="Fixed Pay"/>
             <field name="ft_annual_variable_pay" string="Variable Pay" readonly="1"/>
             <field name="ft_annual_pf_employer" string="PF - Employer"/>
             <field name="ft_annual_esic_employer" string="ESI - Employer"/>
@@ -148,6 +148,10 @@
                   <field name="annual_ctc"/>
                   <field name="monthly_ctc"/>
                   <field name="annual_variable_pay"/>
+                  <field name="annual_fixed_pay"/>
+                  <field name="annual_pf_employer"/>
+                  <field name="annual_esic_employer"/>
+                  <field name="annual_gratuity"/>
                   <field name="monthly_gross"/>
                   <field name="epf_excess_contribution"/>
                   <field name="pf_base_limit"/>

@@ -53,9 +53,10 @@ class TestGreythrPayroll(TransactionCase):
         slip = self._slip()
         lines = {l.code: l.total for l in slip.line_ids}
         # Earnings sum to 29999.5 against a source gross of 30000: the sub-rupee gap is not paid.
-        expected = {'BASIC': 15000, 'HRA': 6000, 'SPL': 7499.5, 'LTA': 500,
-            'MEAL': 1000, 'GROSS_RECON': 0, 'GROSS': 29999.5, 'PF': -1800,
-            'PFE': 1800, 'GRATUITY': 721.15, 'NET': 28199.5, 'CTC_TOTAL': 32520.65}
+        # Like greytHR, every component is paid in whole rupees (7499.5 -> 7500).
+        expected = {'BASIC': 15000, 'HRA': 6000, 'SPL': 7500, 'LTA': 500,
+            'MEAL': 1000, 'GROSS_RECON': 0, 'GROSS': 30000, 'PF': -1800,
+            'PFE': 1800, 'GRATUITY': 721, 'NET': 28200, 'CTC_TOTAL': 32521}
         for code, amount in expected.items():
             self.assertAlmostEqual(lines[code], amount, places=2, msg=code)
         self.assertFalse(self.company.l10n_in_provident_fund)
@@ -69,14 +70,14 @@ class TestGreythrPayroll(TransactionCase):
         self.ctc.write({'monthly_gross': 30010})
         self.ctc.action_apply_to_payroll()
         lines = {l.code: l.total for l in self._slip().line_ids}
-        self.assertAlmostEqual(lines['GROSS_RECON'], 10.5, places=2)
+        self.assertAlmostEqual(lines['GROSS_RECON'], 10, places=2)
         self.assertAlmostEqual(lines['GROSS'], 30010, places=2)
 
     def test_unpaid_leave_prorates_allowances_and_employer_costs(self):
         slip = self._slip(.5)
         lines = {l.code: l.total for l in slip.line_ids}
-        for code, amount in {'GROSS': 14999.75, 'LTA': 250, 'MEAL': 500,
-                'PF': -900, 'PFE': 900, 'GRATUITY': 360.58, 'NET': 14099.75}.items():
+        for code, amount in {'GROSS': 15000, 'SPL': 3750, 'LTA': 250, 'MEAL': 500,
+                'PF': -900, 'PFE': 900, 'GRATUITY': 361, 'NET': 14100}.items():
             self.assertAlmostEqual(lines[code], amount, places=2, msg=code)
 
     def test_zero_paid_time(self):
@@ -104,6 +105,39 @@ class TestGreythrPayroll(TransactionCase):
         self.assertEqual(len(self.employee.version_ids), 1)
         slip = self._slip()
         self.assertAlmostEqual(slip.line_ids.filtered(lambda l: l.code == 'GROSS').total, 30000)
+
+    def test_employee_pf_matches_master_pf_basic(self):
+        # Basic below the cap: the employee form must show the 1,800 the payslip deducts.
+        self.ctc.write({'full_basic': 10000, 'full_special_allowance': 12499.5})
+        self.ctc.action_apply_to_payroll()
+        version = self.employee.version_id
+        self.assertEqual(version.l10n_in_pf_employee_amount, 1800)
+        self.assertEqual(version.l10n_in_pf_employer_amount, 1800)
+        lines = {l.code: l.total for l in self._slip().line_ids}
+        self.assertEqual(lines['PF'], -1800)
+
+    def test_part_month_rounds_like_greythr(self):
+        # 30 of 31 days, figures from a greytHR register: each component is
+        # rounded to the rupee and PF stays 1,800 while earned basic is above the cap.
+        self.ctc.write({'full_basic': 21500, 'full_hra': 8600, 'full_special_allowance': 12899,
+                        'full_meal_allowance': 0, 'full_leave_travel_allowance': 0,
+                        'full_gratuity': 0, 'monthly_gross': 42999, 'master_pf_basic': 21500})
+        self.ctc.action_apply_to_payroll()
+        lines = {l.code: l.total for l in self._slip(30 / 31).line_ids}
+        for code, amount in {'BASIC': 20806, 'HRA': 8323, 'SPL': 12483, 'GROSS_RECON': 0,
+                             'GROSS': 41612, 'PF': -1800, 'PFE': 1800}.items():
+            self.assertEqual(lines[code], amount, code)
+
+    def test_esic_employee_rounds_up(self):
+        self.ctc.write({'full_basic': 9244, 'full_hra': 3698, 'full_special_allowance': 5546,
+                        'full_meal_allowance': 0, 'full_leave_travel_allowance': 0,
+                        'monthly_gross': 18488})
+        self.ctc.action_apply_to_payroll()
+        self.employee.greythr_esi_eligible = True
+        self.employee.version_id.write({'l10n_in_esic': True, 'l10n_in_esic_employee_percentage': 0.0075,
+                                        'l10n_in_esic_employer_percentage': 0.0325})
+        lines = {l.code: l.total for l in self._slip().line_ids}
+        self.assertEqual(lines['ESICS'], -139)   # 0.75% of 18,488 = 138.66
 
     def test_historical_versions_and_mid_month_split(self):
         later = self.ctc.copy({'effective_date': '2026-07-15', 'full_leave_travel_allowance': 800})
@@ -167,9 +201,9 @@ class TestGreythrPayroll(TransactionCase):
         slip = self._slip(.5)
         data = slip._ft_report_values()
         self.assertAlmostEqual(data['master_total'], 29999.5, places=2)
-        self.assertAlmostEqual(data['gross'], 14999.75, places=2)
+        self.assertAlmostEqual(data['gross'], 15000, places=2)
         self.assertEqual(data['deduction_total'], 900)
-        self.assertAlmostEqual(data['net'], 14099.75, places=2)
+        self.assertAlmostEqual(data['net'], 14100, places=2)
         self.assertNotIn('GROSS RECONCILIATION', [row['name'] for row in data['earnings']])
         self.assertEqual(data['lop'], 10)
         self.assertEqual(data['effective_days'], 20)
@@ -241,7 +275,7 @@ class TestGreythrPayroll(TransactionCase):
         slip = self._slip(date_from='2026-07-01', date_to='2026-07-31')
         lines = {l.code: l.total for l in slip.line_ids}
         self.assertAlmostEqual(lines['EDUALW'], 2000, places=2)
-        self.assertAlmostEqual(lines['GROSS'], 31999.5, places=2)
+        self.assertAlmostEqual(lines['GROSS'], 32000, places=2)
         # Paid once: gross is the earnings, not the earnings plus the allowance.
         self.assertAlmostEqual(
             lines['GROSS'],

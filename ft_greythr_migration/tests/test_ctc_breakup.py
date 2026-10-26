@@ -116,3 +116,34 @@ class TestCtcBreakup(TransactionCase):
             self.employee.ft_monthly_variable_pay, 64000 / 12, places=2)
         self.assertAlmostEqual(
             self.employee.ft_monthly_ctc, self.version.ft_monthly_ctc, places=2)
+
+    def test_yearly_figures_from_the_greythr_sheet(self):
+        # Basavaraju's row: greytHR works yearly first and rounds once, so these
+        # are not twelve times the monthly 18,488 / 601 / 445.
+        employee = self.env['hr.employee'].create({
+            'name': 'Sheet Figures', 'company_id': self.company.id,
+            'date_version': '2026-04-01', 'contract_date_start': '2026-04-01', 'wage': 18488,
+        })
+        ctc = self.env['ft.greythr.ctc'].create({
+            'employee_id': employee.id, 'effective_date': '2026-04-01',
+            'full_basic': 9244, 'full_hra': 3698, 'full_special_allowance': 5546,
+            'full_gratuity': 445, 'full_employer_esic': 601, 'monthly_gross': 18488,
+            'monthly_ctc': 26667, 'annual_ctc': 320000, 'annual_variable_pay': 64000,
+            'eligible_for_pf': True, 'master_pf_basic': 15000, 'pf_base_limit': 15000,
+            'payroll_pf_mode': 'capped',
+        })
+        ctc.action_apply_to_payroll()
+        v = employee.version_id
+        # Without the sheet's yearly figures: twelve times monthly.
+        self.assertEqual(v.ft_annual_fixed_pay, 18488 * 12)
+        self.assertEqual(v.ft_annual_gratuity, 445 * 12)
+        ctc.write({'annual_fixed_pay': 221855, 'annual_pf_employer': 21600,
+                   'annual_esic_employer': 7210, 'annual_gratuity': 5336})
+        self.assertEqual(v.ft_annual_fixed_pay, 221855)
+        self.assertEqual(v.ft_annual_esic_employer, 7210)
+        self.assertEqual(v.ft_annual_gratuity, 5336)
+        self.assertEqual(v.ft_annual_ctc, 320000)
+        self.assertEqual(v.ft_monthly_ctc, 26667)
+        # The breakup still adds up to its own Gross Total.
+        self.assertEqual(v.ft_annual_gross, 18488 * 12)
+        self.assertEqual(employee.ft_annual_fixed_pay, 221855)

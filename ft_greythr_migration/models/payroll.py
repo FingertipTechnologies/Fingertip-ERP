@@ -1,5 +1,6 @@
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
+from odoo.tools import float_round
 
 
 # Existing localization fields stay visible in the standard Salary tab.
@@ -96,7 +97,23 @@ class GreythrCTC(models.Model):
             'l10n_in_pf_employee_type': 'calculate' if self.payroll_pf_mode == 'actual' else 'fixed',
             'l10n_in_pf_employer_type': 'calculate' if self.payroll_pf_mode == 'actual' else 'fixed',
         })
+        # The native compute shows 12% of Basic; show the amount the payslip deducts.
+        pf_percent = self.env['hr.rule.parameter']._get_parameter_from_code(
+            'l10n_in_pf_percent', self.effective_date)
+        pf = self.currency_id.round(self._greythr_pf_base() * pf_percent)
+        version.write({'l10n_in_pf_employee_amount': pf, 'l10n_in_pf_employer_amount': pf})
         return True
+
+    def _greythr_pf_base(self, factor=1):
+        # Like greytHR, the cap applies to the earned PF wage: a part month
+        # still deducts the full 1,800 while earned basic stays above the cap.
+        self.ensure_one()
+        if not self.eligible_for_pf or self.payroll_pf_mode in ('none', 'pending'):
+            return 0
+        base = (self.master_pf_basic or self.full_basic) * factor
+        if self.payroll_pf_mode == 'capped':
+            base = min(base, self.pf_base_limit)
+        return base
 
     def write(self, vals):
         # Changes to payroll inputs must be reapplied and reviewed. Source history
@@ -222,16 +239,20 @@ class HrPayslip(models.Model):
         if source not in EARNINGS + ('full_gratuity', 'full_employer_esic', 'gross_difference'):
             raise UserError(self.env._('Unknown greytHR salary component.'))
         amount = self.version_id[NATIVE_COMPONENTS[source]] if source in NATIVE_COMPONENTS else ctc[source]
-        return self.currency_id.round(amount * self._greythr_factor())
+        return self._greythr_round(amount * self._greythr_factor())
+
+    def _greythr_round(self, amount, rounding_method='HALF-UP'):
+        # greytHR pays whole rupees, rounding each component on its own.
+        return float_round(amount, precision_digits=0, rounding_method=rounding_method)
 
     def _greythr_pf(self):
-        ctc = self._greythr_ctc()
-        if not ctc.eligible_for_pf or ctc.payroll_pf_mode in ('none', 'pending'):
-            return 0
-        base = ctc.master_pf_basic or ctc.full_basic
-        if ctc.payroll_pf_mode == 'capped':
-            base = min(base, ctc.pf_base_limit)
-        return self.currency_id.round(base * self._rule_parameter('l10n_in_pf_percent') * self._greythr_factor())
+        base = self._greythr_ctc()._greythr_pf_base(self._greythr_factor())
+        return self._greythr_round(base * self._rule_parameter('l10n_in_pf_percent'))
+
+    def _greythr_esic_employee(self, gross):
+        # ESI contributions are rounded up to the next rupee.
+        rate = self.version_id.l10n_in_esic_employee_percentage
+        return self._greythr_round(gross * rate, rounding_method='UP')
 
     def action_payslip_done(self):
         for slip in self.filtered(lambda p: p.struct_id == self.env.ref('ft_greythr_migration.greythr_structure')):

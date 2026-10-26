@@ -45,6 +45,17 @@ ANNUAL_DEDUCTIONS = {
 
 ANNUAL_FROM_MONTHLY = {**ANNUAL_EARNINGS, **ANNUAL_EMPLOYER, **ANNUAL_DEDUCTIONS}
 
+# Breakup field -> the yearly figure copied from the greytHR CTC sheet, used
+# instead of twelve times the monthly amount when the sheet's figures are there.
+ANNUAL_FROM_SHEET = {
+    'ft_annual_pf_employer': 'annual_pf_employer',
+    'ft_annual_esic_employer': 'annual_esic_employer',
+    'ft_annual_gratuity': 'annual_gratuity',
+}
+SHEET_DEPENDS = ['greythr_ctc_id.annual_fixed_pay', 'greythr_ctc_id.annual_ctc',
+                 'greythr_ctc_id.monthly_ctc',
+                 *('greythr_ctc_id.' + name for name in ANNUAL_FROM_SHEET.values())]
+
 PAYROLL_GROUP = 'hr_payroll.group_hr_payroll_user'
 
 
@@ -95,6 +106,10 @@ class HrVersion(models.Model):
         groups=PAYROLL_GROUP)
 
     # --- Totals ---
+    ft_annual_fixed_pay = fields.Monetary(
+        'Fixed Pay (Yearly)', compute='_compute_ft_ctc_totals', groups=PAYROLL_GROUP,
+        help="The greytHR CTC sheet's yearly fixed pay when it was imported, "
+             'otherwise the yearly gross.')
     ft_annual_gross = fields.Monetary(
         'Gross Total (Yearly)', compute='_compute_ft_ctc_totals', groups=PAYROLL_GROUP,
         help='Monthly gross salary x 12. Also shown as Fixed Pay, which it equals.')
@@ -119,11 +134,20 @@ class HrVersion(models.Model):
         help='Gross salary less employee deductions. Excludes TDS, which is not '
              'held as a fixed monthly figure.')
 
-    @api.depends(*ANNUAL_FROM_MONTHLY.values())
+    def _ft_sheet_ctc(self):
+        # Applied CTC carrying the sheet's yearly figures, if any.
+        self.ensure_one()
+        ctc = self.greythr_ctc_id
+        return ctc if ctc.annual_fixed_pay else ctc.browse()
+
+    @api.depends(*ANNUAL_FROM_MONTHLY.values(), *SHEET_DEPENDS)
     def _compute_ft_annual_components(self):
         for version in self:
             for annual, monthly in ANNUAL_FROM_MONTHLY.items():
                 version[annual] = (version[monthly] or 0.0) * 12
+            if sheet := version.sudo()._ft_sheet_ctc():
+                for annual, source in ANNUAL_FROM_SHEET.items():
+                    version[annual] = sheet[source]
 
     @api.depends('l10n_in_pt', 'pt_rule_parameter_id', 'l10n_in_gross_salary',
                  'sex', 'date_version')
@@ -154,7 +178,7 @@ class HrVersion(models.Model):
 
     @api.depends('l10n_in_gross_salary', 'ft_annual_variable_pay',
                  'ft_monthly_professional_tax',
-                 *(ANNUAL_EMPLOYER.values()), *(ANNUAL_DEDUCTIONS.values()))
+                 *(ANNUAL_EMPLOYER.values()), *(ANNUAL_DEDUCTIONS.values()), *SHEET_DEPENDS)
     def _compute_ft_ctc_totals(self):
         for version in self:
             gross = version.l10n_in_gross_salary or 0.0
@@ -175,6 +199,12 @@ class HrVersion(models.Model):
             version.ft_annual_total_deductions = deductions * 12
             version.ft_monthly_net_payable = gross - deductions
             version.ft_annual_net_payable = (gross - deductions) * 12
+            version.ft_annual_fixed_pay = version.ft_annual_gross
+            if sheet := version.sudo()._ft_sheet_ctc():
+                # greytHR's own figures from the CTC sheet.
+                version.ft_annual_fixed_pay = sheet.annual_fixed_pay
+                version.ft_annual_ctc = sheet.annual_ctc
+                version.ft_monthly_ctc = sheet.monthly_ctc
 
 
 def _related(name):
@@ -215,6 +245,7 @@ class HrEmployee(models.Model):
     ft_monthly_professional_tax = _related('ft_monthly_professional_tax')
     ft_annual_professional_tax = _related('ft_annual_professional_tax')
     ft_annual_gross = _related('ft_annual_gross')
+    ft_annual_fixed_pay = _related('ft_annual_fixed_pay')
     ft_monthly_variable_pay = _related('ft_monthly_variable_pay')
     ft_monthly_ctc = _related('ft_monthly_ctc')
     ft_annual_ctc = _related('ft_annual_ctc')

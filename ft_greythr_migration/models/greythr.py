@@ -52,6 +52,13 @@ class GreythrCTC(models.Model):
     annual_ctc = fields.Monetary('Annual Ctc')
     monthly_ctc = fields.Monetary('Monthly Ctc')
     annual_variable_pay = fields.Monetary('Annual Variable Pay')
+    # Yearly figures exactly as the greytHR CTC sheet shows them. greytHR works
+    # them out from the yearly CTC and rounds once, so they are not always
+    # twelve times the monthly amounts the payslip uses. Display only.
+    annual_fixed_pay = fields.Monetary('Annual Fixed Pay')
+    annual_pf_employer = fields.Monetary('Annual PF Employer')
+    annual_esic_employer = fields.Monetary('Annual ESI Employer')
+    annual_gratuity = fields.Monetary('Annual Gratuity')
     monthly_gross = fields.Monetary('Monthly Gross')
     epf_excess_contribution = fields.Monetary('Epf Excess Contribution')
     pf_base_limit = fields.Monetary('Pf Base Limit')
