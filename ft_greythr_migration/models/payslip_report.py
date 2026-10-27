@@ -1,5 +1,4 @@
 import base64
-import calendar
 
 from odoo import fields, models
 from odoo.tools import file_open, format_date, format_datetime
@@ -50,11 +49,7 @@ class HrPayslip(models.Model):
         gross = sum(row['actual'] for row in earnings)
         total_deductions = sum(row['actual'] for row in deductions)
         net = sum(self.line_ids.filtered(lambda l: l.code == 'NET').mapped('total'))
-        lop = sum(self.worked_days_line_ids.filtered(lambda line:
-            not line.is_paid and line.code != 'OUT').mapped('number_of_days'))
-        start = max(self.date_from, version.contract_date_start or self.date_from)
-        end = min(self.date_to, version.contract_date_end or self.date_to)
-        days = max((end - start).days + 1, 0)
+        days_in_month, effective_days, lop = self._greythr_days()
         bank = employee.primary_bank_account_id
         sex = dict(version._fields['sex']._description_selection(self.env)).get(version.sex, '')
         stamp = format_datetime(self.env, fields.Datetime.now(), tz=self.env.user.tz or 'Asia/Kolkata', dt_format='dd MMM yyyy, hh:mm a')
@@ -74,8 +69,8 @@ class HrPayslip(models.Model):
             'words': words, 'gender': sex,
             'month': format_date(self.env, self.date_from, date_format='MMMM yyyy'),
             'joining': format_date(self.env, version.contract_date_start, date_format='dd MMM yyyy') if version.contract_date_start else '',
-            'days_in_month': calendar.monthrange(self.date_from.year, self.date_from.month)[1],
-            'effective_days': max(days - lop, 0), 'lop': lop,
+            'days_in_month': days_in_month,
+            'effective_days': effective_days, 'lop': lop,
             'bank_name': bank.bank_id.name or '', 'bank_account': bank.acc_number or '',
             # bank_bic fallback: banks whose IFSC still sits in the BIC field.
             'bank_ifsc': bank.bank_ifsc or bank.bank_bic or '',

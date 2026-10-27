@@ -76,8 +76,9 @@ class TestGreythrPayroll(TransactionCase):
     def test_unpaid_leave_prorates_allowances_and_employer_costs(self):
         slip = self._slip(.5)
         lines = {l.code: l.total for l in slip.line_ids}
-        for code, amount in {'GROSS': 15000, 'SPL': 3750, 'LTA': 250, 'MEAL': 500,
-                'PF': -900, 'PFE': 900, 'GRATUITY': 361, 'NET': 14100}.items():
+        # 10 days without pay in a 30-day month: greytHR pays 20/30 (calendar days).
+        for code, amount in {'GROSS': 20000, 'SPL': 5000, 'LTA': 333, 'MEAL': 667,
+                'PF': -1200, 'PFE': 1200, 'GRATUITY': 481, 'NET': 18800}.items():
             self.assertAlmostEqual(lines[code], amount, places=2, msg=code)
 
     def test_zero_paid_time(self):
@@ -117,16 +118,25 @@ class TestGreythrPayroll(TransactionCase):
         self.assertEqual(lines['PF'], -1800)
 
     def test_part_month_rounds_like_greythr(self):
-        # 30 of 31 days, figures from a greytHR register: each component is
+        # 1 day LOP in a 31-day month, figures from a greytHR register: each component is
         # rounded to the rupee and PF stays 1,800 while earned basic is above the cap.
         self.ctc.write({'full_basic': 21500, 'full_hra': 8600, 'full_special_allowance': 12899,
                         'full_meal_allowance': 0, 'full_leave_travel_allowance': 0,
                         'full_gratuity': 0, 'monthly_gross': 42999, 'master_pf_basic': 21500})
         self.ctc.action_apply_to_payroll()
-        lines = {l.code: l.total for l in self._slip(30 / 31).line_ids}
+        lines = {l.code: l.total for l in self._slip(19 / 20, '2026-07-01', '2026-07-31').line_ids}
         for code, amount in {'BASIC': 20806, 'HRA': 8323, 'SPL': 12483, 'GROSS_RECON': 0,
                              'GROSS': 41612, 'PF': -1800, 'PFE': 1800}.items():
             self.assertEqual(lines[code], amount, code)
+
+    def test_august_with_one_and_half_days_lop(self):
+        # 31 days, 1.5 days loss of pay: paid for 29.5 / 31 of the month.
+        slip = self._slip(18.5 / 20, '2026-08-01', '2026-08-31')
+        self.assertAlmostEqual(slip.paid_amount, 29999.5 * 29.5 / 31, places=2)
+        data = slip._ft_report_values()
+        self.assertEqual(data['days_in_month'], 31)
+        self.assertAlmostEqual(data['effective_days'], 29.5, places=6)
+        self.assertAlmostEqual(data['lop'], 1.5, places=6)
 
     def test_esic_employee_rounds_up(self):
         self.ctc.write({'full_basic': 9244, 'full_hra': 3698, 'full_special_allowance': 5546,
@@ -201,16 +211,16 @@ class TestGreythrPayroll(TransactionCase):
         slip = self._slip(.5)
         data = slip._ft_report_values()
         self.assertAlmostEqual(data['master_total'], 29999.5, places=2)
-        self.assertAlmostEqual(data['gross'], 15000, places=2)
-        self.assertEqual(data['deduction_total'], 900)
-        self.assertAlmostEqual(data['net'], 14100, places=2)
+        self.assertAlmostEqual(data['gross'], 20000, places=2)
+        self.assertEqual(data['deduction_total'], 1200)
+        self.assertAlmostEqual(data['net'], 18800, places=2)
         self.assertNotIn('GROSS RECONCILIATION', [row['name'] for row in data['earnings']])
         self.assertEqual(data['lop'], 10)
         self.assertEqual(data['effective_days'], 20)
         self.assertEqual(data['days_in_month'], 30)
         amounts = {row['name']: row for row in data['earnings']}
         self.assertEqual(amounts['LEAVE TRAVEL ALLOWANCE']['master'], 500)
-        self.assertEqual(amounts['LEAVE TRAVEL ALLOWANCE']['actual'], 250)
+        self.assertEqual(amounts['LEAVE TRAVEL ALLOWANCE']['actual'], 333)
         result, _ = self.env['ir.actions.report']._render_qweb_html(
             'ft_greythr_migration.action_report_fingertip_payslip', slip.ids)
         doc = html.fromstring(result)

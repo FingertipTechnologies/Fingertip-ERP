@@ -9,10 +9,10 @@
       <field name="country_id" eval="False"/>
     </record>
 
-    <!-- The rule lives on the default rule set so structures created later
-         inherit it; post_init_hook copies it onto the structures that already
-         exist, because hr.payslip only ever reads struct_id.rule_ids. The rule
-         is inert unless the input is present. -->
+    <!-- The template rule. hr.payslip only ever reads struct_id.rule_ids, so
+         it is copied onto every other structure: the existing ones by
+         post_init_hook, later ones when they are created. The rule is inert
+         unless the input is present. -->
     <record id="salary_rule_salary_advance" model="hr.salary.rule">
       <field name="name">Salary Advance Recovery</field>
       <field name="code">SALARY_ADVANCE</field>

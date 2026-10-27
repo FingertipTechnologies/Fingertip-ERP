@@ -1,3 +1,5 @@
+import calendar
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 from odoo.tools import float_round
@@ -229,6 +231,35 @@ class HrPayslip(models.Model):
         if any(not self.currency_id.is_zero(self.version_id[f] - amount) for f, amount in values.items()):
             raise UserError(self.env._('Salary fields differ from the applied CTC. Reapply the CTC before computing.'))
         return ctc
+
+    def _greythr_days(self):
+        """(days in month, effective days, LOP days), the way greytHR counts them.
+
+        greytHR pays calendar days: Aug with 1.5 days loss of pay is paid for
+        29.5 of 31 days, not for the working days of the office calendar.
+        Days before joining or after leaving are not effective days.
+        """
+        self.ensure_one()
+        version = self.version_id
+        days_in_month = calendar.monthrange(self.date_from.year, self.date_from.month)[1]
+        start = max(self.date_from, version.contract_date_start or self.date_from)
+        end = min(self.date_to, version.contract_date_end or self.date_to)
+        days = max((end - start).days + 1, 0)
+        lop = sum(self.worked_days_line_ids.filtered(
+            lambda line: not line.is_paid and line.code != 'OUT').mapped('number_of_days'))
+        return days_in_month, max(days - lop, 0), lop
+
+    def _get_paid_amount(self):
+        self.ensure_one()
+        structure = self.env.ref('ft_greythr_migration.greythr_structure', raise_if_not_found=False)
+        if (self.struct_id != structure or not self.struct_id.use_worked_day_lines
+                or self.env.context.get('no_paid_amount') or self.env.context.get('salary_simulation')):
+            return super()._get_paid_amount()
+        # No paid day at all in the period: nothing is due.
+        if not any(line.is_paid and line.number_of_days for line in self.worked_days_line_ids):
+            return 0.0
+        days_in_month, effective, _lop = self._greythr_days()
+        return self.version_id.wage * effective / days_in_month
 
     def _greythr_factor(self):
         self.ensure_one()

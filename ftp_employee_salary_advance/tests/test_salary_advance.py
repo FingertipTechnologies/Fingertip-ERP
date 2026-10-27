@@ -431,3 +431,11 @@ class TestSalaryAdvance(TransactionCase):
         advance.installment_ids.sorted('installment_no')[0].already_paid = True
         with self.assertRaises(UserError):
             advance.action_cancel()
+
+    def test_structure_created_later_gets_recovery_rule(self):
+        structure_type = self.env['hr.payroll.structure.type'].create({'name': 'Later Type'})
+        structure = self.env['hr.payroll.structure'].create({
+            'name': 'Later Structure', 'type_id': structure_type.id})
+        self.assertIn('SALARY_ADVANCE', structure.rule_ids.mapped('code'))
+        self.assertIn(self.env.ref('ftp_employee_salary_advance.input_type_salary_advance'),
+                      structure.input_line_type_ids)
