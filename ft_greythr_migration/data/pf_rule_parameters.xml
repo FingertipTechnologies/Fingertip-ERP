@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo noupdate="1">
+    <!-- From September 2026 PF is 12% of the earned fixed gross, on at most
+         this much gross. Payslips ending before the first date keep the old
+         rule (12% of basic up to the CTC's PF base limit). -->
+    <record id="rule_parameter_pf_gross_ceiling" model="hr.rule.parameter">
+        <field name="name">India: PF Gross Ceiling (greytHR structure)</field>
+        <field name="code">ft_pf_gross_ceiling</field>
+        <field name="country_id" ref="base.in"/>
+    </record>
+    <record id="rule_parameter_value_pf_gross_ceiling_2026" model="hr.rule.parameter.value">
+        <field name="parameter_value">25000</field>
+        <field name="rule_parameter_id" ref="rule_parameter_pf_gross_ceiling"/>
+        <field name="date_from" eval="datetime(2026, 9, 1).date()"/>
+    </record>
+</odoo>

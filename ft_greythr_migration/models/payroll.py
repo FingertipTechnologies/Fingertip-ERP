@@ -348,7 +348,20 @@ class HrPayslip(models.Model):
         return float_round(amount, precision_digits=0, rounding_method=rounding_method)
 
     def _greythr_pf(self):
-        base = self._greythr_ctc()._greythr_pf_base(self._greythr_factor())
+        """PF for this payslip, the same amount for employee and employer.
+
+        From September 2026 (rule parameter ft_pf_gross_ceiling) capped PF is
+        12% of the earned fixed gross, on at most 25,000 of it, as greytHR
+        works it out. Earlier payslips keep 12% of basic up to the CTC's PF
+        base limit.
+        """
+        ctc = self._greythr_ctc()
+        ceiling = self.env['hr.rule.parameter']._get_parameter_from_code(
+            'ft_pf_gross_ceiling', self.date_to, raise_if_not_found=False)
+        if ceiling and ctc.eligible_for_pf and ctc.payroll_pf_mode == 'capped':
+            base = min(self._greythr_round(self.paid_amount), ceiling)
+        else:
+            base = ctc._greythr_pf_base(self._greythr_factor())
         return self._greythr_round(base * self._rule_parameter('l10n_in_pf_percent'))
 
     def _greythr_esic_employee(self, gross):

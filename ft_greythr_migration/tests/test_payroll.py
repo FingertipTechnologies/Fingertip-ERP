@@ -129,6 +129,34 @@ class TestGreythrPayroll(TransactionCase):
                              'GROSS': 41612, 'PF': -1800, 'PFE': 1800}.items():
             self.assertEqual(lines[code], amount, code)
 
+    def test_pf_on_gross_from_september_2026(self):
+        # Gross 30,000: PF goes 1,800 -> 3,000 (12% of the 25,000 ceiling);
+        # the salary components themselves do not change.
+        aug = {l.code: l.total for l in self._slip(1, '2026-08-01', '2026-08-31').line_ids}
+        sep = {l.code: l.total for l in self._slip(1, '2026-09-01', '2026-09-30').line_ids}
+        self.assertEqual(aug['PF'], -1800)
+        for code, amount in {'PF': -3000, 'PFE': 3000, 'SPL': 7500, 'GROSS': 30000, 'NET': 27000}.items():
+            self.assertEqual(sep[code], amount, code)
+
+    def test_pf_on_gross_below_the_ceiling(self):
+        # Basavaraju in greytHR's September register: 12% of 18,278 = 2,193.
+        self.ctc.write({'full_basic': 9139, 'full_hra': 3656, 'full_special_allowance': 5483,
+                        'full_meal_allowance': 0, 'full_leave_travel_allowance': 0,
+                        'full_gratuity': 440, 'monthly_gross': 18278})
+        self.ctc.action_apply_to_payroll()
+        aug = {l.code: l.total for l in self._slip(1, '2026-08-01', '2026-08-31').line_ids}
+        sep = {l.code: l.total for l in self._slip(1, '2026-09-01', '2026-09-30').line_ids}
+        self.assertEqual(aug['PF'], -1800)
+        for code, amount in {'PF': -2193, 'PFE': 2193, 'GROSS': 18278}.items():
+            self.assertEqual(sep[code], amount, code)
+
+    def test_pf_on_earned_gross_with_loss_of_pay(self):
+        # Priyanshu in the September register: earned gross 17,059 -> PF 2,047.
+        # Here 10 of 30 days without pay: earned gross 20,000 -> PF 2,400.
+        lines = {l.code: l.total for l in self._slip(0.5, '2026-09-01', '2026-09-30').line_ids}
+        self.assertEqual(lines['GROSS'], 20000)
+        self.assertEqual(lines['PF'], -2400)
+
     def test_august_with_one_and_half_days_lop(self):
         # 31 days, 1.5 days loss of pay: paid for 29.5 / 31 of the month.
         slip = self._slip(18.5 / 20, '2026-08-01', '2026-08-31')
