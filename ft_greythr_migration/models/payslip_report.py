@@ -28,6 +28,7 @@ class HrPayslip(models.Model):
             ('ATTIRE', 'ATTIRE ALLOWANCE', 'full_attire_allowance'),
             ('BOOKS', 'BOOKS AND PERIODICALS', 'full_book_and_periodicals'),
             ('GROSS_RECON', 'GROSS RECONCILIATION', 'gross_difference'),
+            ('NTA', 'NON-TAXABLE ALLOWANCE', 'full_non_taxable_allowance'),
         ]
         earnings = []
         seen = set()

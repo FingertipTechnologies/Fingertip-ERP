@@ -24,6 +24,19 @@
                         </group>
                     </group>
                 </page>
+                <page string="Non-Taxable Allowance" name="ft_non_taxable_allowance">
+                    <group>
+                        <group>
+                            <field name="ft_non_taxable_allowance_monthly"/>
+                            <field name="ft_non_taxable_allowance" readonly="state != 'draft'"/>
+                            <div colspan="2" class="text-muted" invisible="state != 'draft'">
+                                Pro-rated for days without pay. Change it if needed, save,
+                                then click Compute Sheet. Added to net pay after gross:
+                                no PT, ESI, PF or TDS on it.
+                            </div>
+                        </group>
+                    </group>
+                </page>
             </page>
         </field>
     </record>

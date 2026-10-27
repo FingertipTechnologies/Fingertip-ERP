@@ -49,6 +49,7 @@ class GreythrCTC(models.Model):
     full_book_and_periodicals = fields.Monetary('Full Book And Periodicals')
     full_telephone_charges = fields.Monetary('Full Telephone Charges')
     full_gratuity = fields.Monetary('Full Gratuity')
+    full_non_taxable_allowance = fields.Monetary('Full Non-Taxable Allowance')
     annual_ctc = fields.Monetary('Annual Ctc')
     monthly_ctc = fields.Monetary('Monthly Ctc')
     annual_variable_pay = fields.Monetary('Annual Variable Pay')

@@ -138,6 +138,7 @@
                   <field name="full_book_and_periodicals"/>
                   <field name="full_telephone_charges"/>
                   <field name="full_gratuity"/>
+                  <field name="full_non_taxable_allowance"/>
                   <field name="annual_ctc"/>
                   <field name="monthly_ctc"/>
                   <field name="annual_variable_pay"/>
@@ -187,6 +188,11 @@
           <field name="ft_children_education_allowance" class="o_hr_narrow_field"/>
           <span>/ month</span>
         </div>
+        <label for="ft_non_taxable_allowance"/>
+        <div class="o_row">
+          <field name="ft_non_taxable_allowance" class="o_hr_narrow_field"/>
+          <span>/ month</span>
+        </div>
       </separator>
     </field>
   </record>
@@ -200,6 +206,11 @@
         <label for="ft_children_education_allowance"/>
         <div class="o_row">
           <field name="ft_children_education_allowance" class="o_hr_narrow_field"/>
+          <span>/ month</span>
+        </div>
+        <label for="ft_non_taxable_allowance"/>
+        <div class="o_row">
+          <field name="ft_non_taxable_allowance" class="o_hr_narrow_field"/>
           <span>/ month</span>
         </div>
       </xpath>

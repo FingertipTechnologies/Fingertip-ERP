@@ -19,12 +19,17 @@ NATIVE_COMPONENTS = {
     # own. It behaves like the native components in every other way: applying a
     # CTC writes it, the payslip rule reads it, and it counts in gross.
     'full_children_education_allowance': 'ft_children_education_allowance',
+    # Paid after gross, straight into net pay: outside CTC, PT, ESI, PF and TDS.
+    'full_non_taxable_allowance': 'ft_non_taxable_allowance',
 }
+# Components that are applied and checked like the others but are not part of
+# the monthly gross.
+NOT_IN_GROSS = ('full_gratuity', 'full_non_taxable_allowance')
 EXTRA_EARNINGS = (
     'full_medical_allowance', 'full_consultancy_fees',
     'full_attire_allowance', 'full_book_and_periodicals',
 )
-EARNINGS = tuple(n for n in NATIVE_COMPONENTS if n != 'full_gratuity') + EXTRA_EARNINGS
+EARNINGS = tuple(n for n in NATIVE_COMPONENTS if n not in NOT_IN_GROSS) + EXTRA_EARNINGS
 
 
 class GreythrCTC(models.Model):
@@ -120,7 +125,7 @@ class GreythrCTC(models.Model):
     def write(self, vals):
         # Changes to payroll inputs must be reapplied and reviewed. Source history
         # already used for confirmed payslips must remain reproducible.
-        sensitive = set(EARNINGS) | {'full_gratuity', 'full_employer_esic', 'monthly_gross',
+        sensitive = set(EARNINGS) | set(NOT_IN_GROSS) | {'full_employer_esic', 'monthly_gross',
             'monthly_ctc', 'annual_ctc', 'annual_variable_pay', 'eligible_for_pf',
             'master_pf_basic', 'pf_base_limit', 'epf_excess_contribution', 'payroll_pf_mode',
             'effective_date', 'employee_id'}
@@ -178,6 +183,12 @@ class HrVersion(models.Model):
                 ])
 
 
+    ft_non_taxable_allowance = fields.Monetary(
+        string='Non-Taxable Allowance', tracking=True,
+        groups='hr_payroll.group_hr_payroll_user',
+        help='Monthly non-taxable allowance. Paid after gross, straight into net '
+             'pay: not part of CTC, and no PT, ESI, PF or TDS on it. Pro-rated '
+             'for days without pay and editable on each payslip.')
     ft_children_education_allowance = fields.Monetary(
         string='Children Education Allowance', tracking=True,
         groups='hr_payroll.group_hr_payroll_user',
@@ -208,6 +219,9 @@ class HrEmployee(models.Model):
         groups='hr_payroll.group_hr_payroll_user', string='Applied greytHR CTC')
     ft_children_education_allowance = fields.Monetary(
         related='version_id.ft_children_education_allowance', readonly=False,
+        inherited=True, groups='hr_payroll.group_hr_payroll_user')
+    ft_non_taxable_allowance = fields.Monetary(
+        related='version_id.ft_non_taxable_allowance', readonly=False,
         inherited=True, groups='hr_payroll.group_hr_payroll_user')
 
     def action_greythr_apply_ctc(self):
@@ -251,6 +265,25 @@ class HrEmployee(models.Model):
 
 class HrPayslip(models.Model):
     _inherit = 'hr.payslip'
+
+    ft_non_taxable_allowance_monthly = fields.Monetary(
+        'Monthly Amount', related='version_id.ft_non_taxable_allowance')
+    ft_non_taxable_allowance = fields.Monetary(
+        'Pay This Month', compute='_compute_ft_non_taxable_allowance',
+        store=True, readonly=False, copy=False,
+        help='Starts from the monthly amount, pro-rated for days without pay. '
+             'Can be changed for this payslip. Added to net pay after gross.')
+
+    @api.depends('version_id.ft_non_taxable_allowance', 'worked_days_line_ids.number_of_days',
+                 'worked_days_line_ids.amount', 'date_from', 'date_to')
+    def _compute_ft_non_taxable_allowance(self):
+        for slip in self:
+            if slip.state != 'draft' or not slip.version_id or not slip.version_id.wage:
+                slip.ft_non_taxable_allowance = slip.ft_non_taxable_allowance
+                continue
+            factor = slip.paid_amount / slip.version_id.wage
+            slip.ft_non_taxable_allowance = slip._greythr_round(
+                slip.version_id.ft_non_taxable_allowance * factor)
 
     def _greythr_ctc(self):
         self.ensure_one()
@@ -305,7 +338,7 @@ class HrPayslip(models.Model):
 
     def _greythr_component(self, source):
         ctc = self._greythr_ctc()
-        if source not in EARNINGS + ('full_gratuity', 'full_employer_esic', 'gross_difference'):
+        if source not in EARNINGS + NOT_IN_GROSS + ('full_employer_esic', 'gross_difference'):
             raise UserError(self.env._('Unknown greytHR salary component.'))
         amount = self.version_id[NATIVE_COMPONENTS[source]] if source in NATIVE_COMPONENTS else ctc[source]
         return self._greythr_round(amount * self._greythr_factor())

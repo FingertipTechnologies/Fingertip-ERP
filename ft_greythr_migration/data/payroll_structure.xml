@@ -24,6 +24,13 @@
         <field name="code">FT_EMPLOYER</field>
         <field name="country_id" ref="base.in"/>
     </record>
+    <!-- Paid after gross: NET adds it, GROSS (and so PT and ESI) and the CTC
+         totals never see it. -->
+    <record id="greythr_nta_category" model="hr.salary.rule.category">
+        <field name="name">Non-Taxable Allowance</field>
+        <field name="code">FT_NTA</field>
+        <field name="country_id" ref="base.in"/>
+    </record>
     <record id="greythr_info_category" model="hr.salary.rule.category">
         <field name="name">CTC Reconciliation Information</field>
         <field name="code">FT_CTC_INFO</field>
@@ -341,9 +348,20 @@ result_name = inputs['REIMBURSEMENT'].name
         <field name="condition_select">none</field>
         <field name="amount_select">code</field>
         <field name="amount_python_compute">
-result = categories['BASIC'] + categories['ALW'] + categories['DED']
+result = categories['BASIC'] + categories['ALW'] + categories['DED'] + categories['FT_NTA']
         </field>
         <field name="struct_id" ref="greythr_structure"/>
+    </record>
+    <record id="greythr_rule_nta" model="hr.salary.rule">
+        <field name="name">Non-Taxable Allowance</field>
+        <field name="code">NTA</field>
+        <field name="sequence">190</field>
+        <field name="category_id" ref="greythr_nta_category"/>
+        <field name="struct_id" ref="greythr_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = bool(payslip.ft_non_taxable_allowance)</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip.ft_non_taxable_allowance</field>
     </record>
     <record id="greythr_rule_medalw" model="hr.salary.rule">
         <field name="name">Medical Allowance</field>

@@ -427,3 +427,28 @@ class TestGreythrPayroll(TransactionCase):
         self.assertEqual(run.ft_draft_move_count, 0)
         with self.assertRaises(UserError):
             run.action_ft_post_entries()
+
+    def test_non_taxable_allowance_after_gross(self):
+        baseline = {l.code: l.total for l in self._slip().line_ids}
+        self.ctc.write({'full_non_taxable_allowance': 1000})
+        self.ctc.action_apply_to_payroll()
+        self.assertEqual(self.employee.ft_non_taxable_allowance, 1000)
+        self.assertEqual(self.employee.wage, baseline['GROSS'] - 0.5)   # wage unchanged (29999.5)
+        lines = {l.code: l.total for l in self._slip().line_ids}
+        self.assertEqual(lines['NTA'], 1000)
+        self.assertEqual(lines['GROSS'], baseline['GROSS'])           # not in gross: PT/ESI untouched
+        self.assertEqual(lines['NET'], baseline['NET'] + 1000)        # straight into net
+        self.assertEqual(lines['CTC_TOTAL'], baseline['CTC_TOTAL'])   # not in CTC
+        self.assertEqual(lines['CTC_DIFF'], baseline['CTC_DIFF'])
+
+    def test_non_taxable_allowance_prorated_and_editable(self):
+        self.ctc.write({'full_non_taxable_allowance': 1000})
+        self.ctc.action_apply_to_payroll()
+        slip = self._slip(.5)      # 10 days without pay in a 30-day month
+        self.assertEqual(slip.ft_non_taxable_allowance, 667)
+        slip.ft_non_taxable_allowance = 400
+        slip.compute_sheet()
+        self.assertEqual({l.code: l.total for l in slip.line_ids}['NTA'], 400)
+        data = slip._ft_report_values()
+        row = next(r for r in data['earnings'] if r['name'] == 'NON-TAXABLE ALLOWANCE')
+        self.assertEqual((row['master'], row['actual']), (1000, 400))
