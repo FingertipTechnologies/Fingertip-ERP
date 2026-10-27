@@ -9,21 +9,14 @@
         <field name="greythr_father_name" groups="hr.group_hr_user"/>
         <field name="greythr_mother_name" groups="hr.group_hr_user"/>
       </xpath>
-      <!-- Smart button, beside the payslip one hr_payroll adds. -->
-      <button name="action_open_versions" position="before">
-        <button class="oe_stat_button" name="action_open_variable_pay"
-                type="object" icon="fa-line-chart"
-                groups="hr_payroll.group_hr_payroll_user">
-          <field name="ft_variable_pay_count" string="Variable Pay" widget="statinfo"/>
-        </button>
-      </button>
       <!-- Targets live on hr.version (Odoo 19's contract) and are shown here
            through the _inherits delegation, so editing them writes the active
            version rather than the employee. -->
       <xpath expr="//page[@name='payroll_information']" position="inside">
         <group string="Variable Pay" groups="hr_payroll.group_hr_payroll_user">
-          <field name="ft_annual_variable_pay"/>
-          <field name="ft_variable_pay_count"/>
+          <field name="ft_annual_variable_pay" string="Annual Target"/>
+          <field name="ft_variable_pay_paid_fy" string="Paid This FY"/>
+          <field name="ft_variable_pay_remaining" string="Remaining This FY"/>
         </group>
         <!-- Read-only CTC breakup in the shape of the Fingertip CTC sheet:
              Yearly beside Monthly, with the same subtotals. Derived entirely

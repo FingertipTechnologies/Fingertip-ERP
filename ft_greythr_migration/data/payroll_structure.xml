@@ -410,7 +410,7 @@ result = categories['BASIC'] + categories['ALW'] + categories['DED']
              and net salary would not move at all. The paid amount is rounded
              to whole rupees first, so per-component rounding never shows up
              as a paise-level reconciliation line. -->
-        <field name="amount_python_compute">result = payslip._greythr_round(payslip.paid_amount) - categories['BASIC'] - categories['ALW'] + payslip._ft_variable_pay_input_amount()</field>
+        <field name="amount_python_compute">result = payslip._greythr_round(payslip.paid_amount) - categories['BASIC'] - categories['ALW'] + payslip.ft_variable_pay_amount</field>
     </record>
     <record id="greythr_rule_ctc_total" model="hr.salary.rule">
         <field name="name">Calculated Employer CTC</field>
@@ -433,6 +433,6 @@ result = categories['BASIC'] + categories['ALW'] + categories['DED']
         <!-- Variable pay is outside monthly CTC by design, so it is removed
              from gross before this reconciliation; leaving it in would report a
              CTC shortfall in every quarter a payout lands. -->
-        <field name="amount_python_compute">result = payslip._greythr_round(payslip._greythr_ctc().monthly_ctc * payslip._greythr_factor() - (categories['GROSS'] - payslip._ft_variable_pay_input_amount()) - categories['FT_EMPLOYER'])</field>
+        <field name="amount_python_compute">result = payslip._greythr_round(payslip._greythr_ctc().monthly_ctc * payslip._greythr_factor() - (categories['GROSS'] - payslip.ft_variable_pay_amount) - categories['FT_EMPLOYER'])</field>
     </record>
 </odoo>

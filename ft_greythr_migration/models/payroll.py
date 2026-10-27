@@ -85,8 +85,8 @@ class GreythrCTC(models.Model):
             'greythr_ctc_id': self.id,
             'structure_type_id': self.env.ref('ft_greythr_migration.greythr_structure_type').id,
             'wage': self._payroll_gross(),
-            # Target only. It is never paid monthly: payout happens through
-            # hr.variable.pay, one approved amount per quarter.
+            # Target only. It is never paid monthly: HR types the payout on the
+            # payslip (Variable Pay tab), up to this total per financial year.
             'ft_annual_variable_pay': self.annual_variable_pay,
             'l10n_in_standard_allowance': 0,
             'l10n_in_performance_bonus': 0,
@@ -209,6 +209,44 @@ class HrEmployee(models.Model):
     ft_children_education_allowance = fields.Monetary(
         related='version_id.ft_children_education_allowance', readonly=False,
         inherited=True, groups='hr_payroll.group_hr_payroll_user')
+
+    def action_greythr_apply_ctc(self):
+        """Apply to Payroll for many employees at once, after a bulk import.
+
+        Applies every CTC not yet marked reviewed, oldest first, so a salary
+        history builds its versions in order. Reviewed CTCs are left alone.
+        One employee failing does not undo the others; the failures are listed.
+        """
+        self.env['ft.greythr.ctc']._check_payroll_manager()
+        applied, failed = 0, []
+        for employee in self:
+            ctcs = employee.greythr_ctc_ids.filtered(lambda c: not c.payroll_reviewed)
+            for ctc in ctcs.sorted('effective_date'):
+                try:
+                    with self.env.cr.savepoint():
+                        ctc.action_apply_to_payroll()
+                    applied += 1
+                except UserError as error:
+                    failed.append('%s (%s): %s' % (employee.name, ctc.effective_date, error.args[0]))
+        return self._greythr_bulk_result(self.env._('%s CTC applied to payroll.', applied), failed)
+
+    def action_greythr_mark_reviewed(self):
+        """Tick Payroll Setup Reviewed on the CTC applied to each employee."""
+        self.env['ft.greythr.ctc']._check_payroll_manager()
+        ctcs = self.mapped('version_id.greythr_ctc_id').filtered(lambda c: not c.payroll_reviewed)
+        ctcs.write({'payroll_reviewed': True})
+        missing = [employee.name for employee in self if not employee.version_id.greythr_ctc_id]
+        failed = [self.env._('%s: no CTC applied yet', name) for name in missing]
+        return self._greythr_bulk_result(self.env._('%s CTC marked reviewed.', len(ctcs)), failed)
+
+    def _greythr_bulk_result(self, message, failed):
+        if failed:
+            message += '\n' + self.env._('Not done:') + '\n' + '\n'.join(failed)
+        return {
+            'type': 'ir.actions.client', 'tag': 'display_notification',
+            'params': {'message': message, 'type': 'warning' if failed else 'success',
+                       'sticky': bool(failed), 'next': {'type': 'ir.actions.act_window_close'}},
+        }
 
 
 class HrPayslip(models.Model):

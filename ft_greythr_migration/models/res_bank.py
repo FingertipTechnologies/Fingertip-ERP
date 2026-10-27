@@ -57,3 +57,35 @@ class ResPartnerBank(models.Model):
     # set the IFSC on the employee's salary account without opening the bank.
     bank_ifsc = fields.Char(
         related='bank_id.ifsc_code', readonly=False, string="IFSC Code")
+
+    def _ft_ifsc(self):
+        """The IFSC to pay into: our IFSC Code field, else the BIC that Indian
+        databases have traditionally used for it."""
+        self.ensure_one()
+        return self.bank_ifsc or self.bank_bic or ''
+
+
+class HrEmployee(models.Model):
+    _inherit = 'hr.employee'
+
+    def _get_employees_with_invalid_ifsc(self):
+        # l10n_in_hr_payroll only looks at the BIC; read the IFSC field first.
+        return self.filtered(
+            lambda employee:
+                not employee.bank_account_ids
+                or any(not IFSC_PATTERN.match(bank_account._ft_ifsc())
+                       for bank_account in employee.bank_account_ids))
+
+
+class HrPayrollPaymentReportWizard(models.TransientModel):
+    _inherit = 'hr.payroll.payment.report.wizard'
+
+    def _get_report_data(self, payslip):
+        # The Payment Advice prints bank_bic as the IFSC; use the IFSC field.
+        rows = super()._get_report_data(payslip)
+        accounts = {account.acc_number: account for account in payslip.employee_id.bank_account_ids}
+        for row in rows:
+            account = accounts.get(row['acc_no'])
+            if account:
+                row['ifsc_code'] = account._ft_ifsc()
+        return rows

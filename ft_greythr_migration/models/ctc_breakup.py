@@ -189,7 +189,7 @@ class HrVersion(models.Model):
             # Variable pay is held as an annual target. Both CTC totals carry it,
             # the monthly one as a twelfth, so the two columns agree. It stays out
             # of the fixed breakup, deductions and net pay: the real payouts are
-            # approved quarterly on performance (hr.variable.pay).
+            # typed on payslips on performance (Variable Pay tab).
             monthly_variable = (version.ft_annual_variable_pay or 0.0) / 12.0
             version.ft_annual_gross = gross * 12
             version.ft_monthly_variable_pay = monthly_variable

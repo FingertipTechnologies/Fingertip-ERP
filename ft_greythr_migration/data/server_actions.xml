@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Employees list > select > Actions: bulk version of the CTC buttons,
+         for employees imported from Excel. -->
+    <record id="action_server_greythr_apply_ctc" model="ir.actions.server">
+        <field name="name">Apply CTC to Payroll</field>
+        <field name="model_id" ref="hr.model_hr_employee"/>
+        <field name="binding_model_id" ref="hr.model_hr_employee"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="group_ids" eval="[Command.link(ref('hr_payroll.group_hr_payroll_manager'))]"/>
+        <field name="state">code</field>
+        <field name="code">action = records.action_greythr_apply_ctc()</field>
+    </record>
+    <record id="action_server_greythr_mark_reviewed" model="ir.actions.server">
+        <field name="name">Mark CTC Payroll Setup Reviewed</field>
+        <field name="model_id" ref="hr.model_hr_employee"/>
+        <field name="binding_model_id" ref="hr.model_hr_employee"/>
+        <field name="binding_view_types">list,form</field>
+        <field name="group_ids" eval="[Command.link(ref('hr_payroll.group_hr_payroll_manager'))]"/>
+        <field name="state">code</field>
+        <field name="code">action = records.action_greythr_mark_reviewed()</field>
+    </record>
+</odoo>

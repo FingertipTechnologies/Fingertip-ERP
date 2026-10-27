@@ -376,3 +376,54 @@ class TestGreythrPayroll(TransactionCase):
         self.assertEqual(version.greythr_ctc_id, self.ctc)
         self.assertAlmostEqual(version.l10n_in_fixed_allowance,
                                self.ctc.full_special_allowance, 2)
+
+    def test_bulk_apply_and_review_from_employee_list(self):
+        def new_employee(name, gross):
+            employee = self.env['hr.employee'].create({
+                'name': name, 'company_id': self.company.id,
+                'date_version': '2026-06-01', 'contract_date_start': '2026-06-01', 'wage': 1000})
+            self.env['ft.greythr.ctc'].create({
+                'employee_id': employee.id, 'effective_date': '2026-06-01',
+                'full_basic': gross / 2, 'full_special_allowance': gross / 2, 'monthly_gross': gross,
+                'eligible_for_pf': True, 'master_pf_basic': 15000, 'pf_base_limit': 15000,
+                'payroll_pf_mode': 'capped'})
+            return employee
+        good = new_employee('Bulk Good', 40000)
+        bad = new_employee('Bulk Bad', 0)   # no gross: Apply refuses it
+        result = (good | bad).action_greythr_apply_ctc()
+        self.assertEqual(good.version_id.wage, 40000)
+        self.assertEqual(good.version_id.structure_type_id,
+                         self.env.ref('ft_greythr_migration.greythr_structure_type'))
+        self.assertFalse(bad.version_id.greythr_ctc_id)
+        self.assertEqual(result['params']['type'], 'warning')
+        self.assertIn('Bulk Bad', result['params']['message'])
+
+        (good | bad).action_greythr_mark_reviewed()
+        self.assertTrue(good.greythr_ctc_ids.payroll_reviewed)
+        self.assertFalse(bad.greythr_ctc_ids.payroll_reviewed)
+        # Reviewed CTCs are skipped on the next bulk run.
+        self.assertIn('0 CTC', good.action_greythr_apply_ctc()['params']['message'])
+
+    def test_payment_advice_reads_ifsc_field(self):
+        bank = self.env['res.bank'].create({'name': 'Union Bank of India', 'ifsc_code': 'UBIN0803952'})
+        self.employee.bank_account_ids = [Command.create({
+            'acc_number': '39510100143214', 'bank_id': bank.id,
+            'partner_id': self.employee.work_contact_id.id, 'allow_out_payment': True})]
+        self.assertFalse(self.employee._get_employees_with_invalid_ifsc())
+        self.ctc.payroll_reviewed = True
+        slip = self._slip()
+        slip.action_payslip_done()
+        wizard = self.env['hr.payroll.payment.report.wizard'].create({'payslip_ids': slip.ids})
+        rows = wizard._get_report_data(slip)
+        self.assertEqual([row['ifsc_code'] for row in rows], ['UBIN0803952'])
+        bank.ifsc_code = False
+        self.assertTrue(self.employee._get_employees_with_invalid_ifsc())
+
+    def test_pay_run_post_entries_without_drafts(self):
+        run = self.env['hr.payslip.run'].create({
+            'name': 'June 2026', 'date_start': '2026-06-01', 'date_end': '2026-06-30'})
+        slip = self._slip()
+        slip.payslip_run_id = run
+        self.assertEqual(run.ft_draft_move_count, 0)
+        with self.assertRaises(UserError):
+            run.action_ft_post_entries()

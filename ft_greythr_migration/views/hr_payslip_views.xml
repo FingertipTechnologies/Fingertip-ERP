@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Variable pay is decided on performance and typed here, on the draft
+         payslip, after it is generated. -->
+    <record id="view_hr_payslip_form_variable_pay" model="ir.ui.view">
+        <field name="name">hr.payslip.form.variable.pay</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="hr_payroll.view_hr_payslip_form"/>
+        <field name="arch" type="xml">
+            <page name="account_info" position="before">
+                <page string="Variable Pay" name="ft_variable_pay">
+                    <group>
+                        <group string="This Financial Year (Apr-Mar)">
+                            <field name="ft_variable_pay_target"/>
+                            <field name="ft_variable_pay_paid_fy"/>
+                            <field name="ft_variable_pay_remaining"/>
+                        </group>
+                        <group string="This Payslip">
+                            <field name="ft_variable_pay_amount" readonly="state != 'draft'"/>
+                            <div colspan="2" class="text-muted" invisible="state != 'draft'">
+                                Type the amount, save, then click Compute Sheet.
+                                It cannot be more than the remaining annual target.
+                            </div>
+                        </group>
+                    </group>
+                </page>
+            </page>
+        </field>
+    </record>
+</odoo>
