@@ -8,14 +8,18 @@
       <page name="account_info" position="before">
         <page string="Salary Advance" name="salary_advance"
               invisible="not salary_advance_installment_ids">
-          <field name="salary_advance_installment_ids" readonly="1">
-            <list>
-              <field name="advance_id"/>
-              <field name="installment_no"/>
-              <field name="installment_date"/>
-              <field name="amount"/>
-              <field name="already_paid" optional="hide"/>
-              <field name="state"/>
+          <!-- Amount editable on a draft payslip: this month's recovery can be
+               changed (0 skips the month); the rest of the schedule follows. -->
+          <field name="salary_advance_installment_ids" readonly="state != 'draft'">
+            <list editable="bottom" create="0" delete="0">
+              <field name="advance_id" readonly="1"/>
+              <field name="installment_no" readonly="1"/>
+              <field name="installment_date" readonly="1"/>
+              <field name="planned_amount" readonly="1" optional="show"
+                     invisible="not planned_amount"/>
+              <field name="amount" string="Recover This Month" readonly="state != 'pending'"/>
+              <field name="already_paid" optional="hide" readonly="1"/>
+              <field name="state" readonly="1"/>
               <field name="currency_id" column_invisible="1"/>
             </list>
           </field>

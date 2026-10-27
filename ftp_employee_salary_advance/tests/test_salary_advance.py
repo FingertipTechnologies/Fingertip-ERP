@@ -439,3 +439,66 @@ class TestSalaryAdvance(TransactionCase):
         self.assertIn('SALARY_ADVANCE', structure.rule_ids.mapped('code'))
         self.assertIn(self.env.ref('ftp_employee_salary_advance.input_type_salary_advance'),
                       structure.input_line_type_ids)
+
+    # ------------------------------------------------------------------
+    # This month's recovery changed on the payslip
+    # ------------------------------------------------------------------
+    def _adjust(self, slip, amount):
+        slip.salary_advance_installment_ids.amount = amount
+        slip.compute_sheet()
+
+    def test_adjust_down_extends_the_schedule(self):
+        advance = self._advance(100000, 10000)
+        slip = self._payslip(1)
+        self._adjust(slip, 5000)
+        self.assertAlmostEqual(self._advance_line(slip), -5000, 2)   # recompute keeps it
+        amounts = advance.installment_ids.sorted('installment_no').mapped('amount')
+        self.assertEqual(amounts, [5000] + [10000] * 9 + [5000])
+        slip.action_payslip_done()
+        self.assertAlmostEqual(advance.recovered_amount, 5000, 2)
+        self.assertAlmostEqual(advance.remaining_amount, 95000, 2)
+        self.assertIn('instead of the planned', advance.message_ids[0].body)
+        # Next month is back to the normal amount.
+        self.assertAlmostEqual(self._advance_line(self._payslip(2)), -10000, 2)
+
+    def test_adjust_up_shortens_the_schedule(self):
+        advance = self._advance(100000, 10000)
+        slip = self._payslip(1)
+        self._adjust(slip, 15000)
+        self.assertAlmostEqual(self._advance_line(slip), -15000, 2)
+        amounts = advance.installment_ids.sorted('installment_no').mapped('amount')
+        self.assertEqual(amounts, [15000] + [10000] * 8 + [5000])
+
+    def test_adjust_to_zero_skips_the_month(self):
+        advance = self._advance(100000, 10000)
+        slip = self._payslip(1)
+        self._adjust(slip, 0)
+        self.assertFalse(slip.line_ids.filtered(lambda l: l.code == 'SALARY_ADVANCE'))
+        amounts = advance.installment_ids.sorted('installment_no').mapped('amount')
+        self.assertEqual(amounts, [0] + [10000] * 10)
+        slip.action_payslip_done()
+        self.assertAlmostEqual(advance.remaining_amount, 100000, 2)
+        self.assertAlmostEqual(self._advance_line(self._payslip(2)), -10000, 2)
+
+    def test_adjustment_undone_when_payslip_cancelled_or_deleted(self):
+        advance = self._advance(100000, 10000)
+        slip = self._payslip(1)
+        self._adjust(slip, 5000)
+        slip.action_payslip_cancel()
+        amounts = advance.installment_ids.sorted('installment_no').mapped('amount')
+        self.assertEqual(amounts, [10000] * 10)
+        slip = self._payslip(1)
+        self._adjust(slip, 15000)
+        slip.unlink()
+        self.assertEqual(advance.installment_ids.sorted('installment_no').mapped('amount'), [10000] * 10)
+
+    def test_adjustment_limits(self):
+        self._advance(100000, 10000)
+        slip = self._payslip(1)
+        with self.assertRaises(UserError):
+            slip.salary_advance_installment_ids.amount = 100001
+        with self.assertRaises(UserError):
+            slip.salary_advance_installment_ids.amount = -1
+        slip.action_payslip_done()
+        with self.assertRaises(UserError):
+            slip.salary_advance_installment_ids.amount = 5000   # already recovered

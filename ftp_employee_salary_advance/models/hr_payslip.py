@@ -87,7 +87,7 @@ class HrPayslip(models.Model):
         for slip in self.filtered(lambda s: s.state == 'draft'):
             # Start from a clean slate so recomputing cannot stack deductions.
             slip.salary_advance_installment_ids.filtered(
-                lambda i: i.state == 'pending')._release()
+                lambda i: i.state == 'pending')._release(keep_adjustment=True)
             due = slip._salary_advance_due_installments()
             if due:
                 due._reserve(slip)
@@ -132,6 +132,12 @@ class HrPayslip(models.Model):
                 if previous.get(slip.id) != 'draft':
                     slip.salary_advance_installment_ids._release()
         return res
+
+    @api.ondelete(at_uninstall=False)
+    def _unlink_release_salary_advance(self):
+        # Otherwise a deleted draft leaves its reservation, and any amount
+        # changed on it, stuck on the installment.
+        self.salary_advance_installment_ids._release()
 
     def action_open_salary_advances(self):
         self.ensure_one()

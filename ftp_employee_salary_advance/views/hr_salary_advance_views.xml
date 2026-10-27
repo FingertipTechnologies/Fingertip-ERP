@@ -80,6 +80,7 @@
                   <field name="installment_date"
                          readonly="state == 'deducted' or already_paid or payslip_id"/>
                   <field name="amount" readonly="1"/>
+                  <field name="planned_amount" optional="show" invisible="not planned_amount"/>
                   <field name="already_paid" widget="boolean_toggle"
                          readonly="state == 'deducted'"/>
                   <field name="state" readonly="1"/>

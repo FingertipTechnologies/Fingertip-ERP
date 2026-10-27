@@ -28,6 +28,10 @@ class HrSalaryAdvanceInstallment(models.Model):
     installment_no = fields.Integer(string='Installment', required=True)
     installment_date = fields.Date(string='Date', required=True, index=True)
     amount = fields.Monetary(string='Amount', required=True)
+    planned_amount = fields.Monetary(
+        string='Planned Amount', readonly=True, copy=False,
+        help="The scheduled amount, kept when this month's recovery was changed "
+             "on the payslip.")
     payslip_id = fields.Many2one(
         'hr.payslip', string='Payslip', readonly=True, copy=False,
         ondelete='set null', index=True,
@@ -47,8 +51,9 @@ class HrSalaryAdvanceInstallment(models.Model):
              "cash. It counts towards the recovered amount and payroll will "
              "not deduct it again.")
 
+    # Zero is allowed: a month skipped on the payslip.
     _check_amount = models.Constraint(
-        'CHECK(amount > 0)', 'An installment amount must be greater than zero.')
+        'CHECK(amount >= 0)', 'An installment amount cannot be negative.')
     _unique_number = models.Constraint(
         'unique(advance_id, installment_no)',
         'Installment numbers must be unique within one advance.')
@@ -94,6 +99,8 @@ class HrSalaryAdvanceInstallment(models.Model):
                 line.with_context(ftp_skip_date_cascade=True).installment_date = shifted
 
     def write(self, vals):
+        if 'amount' in vals and not self.env.context.get('ftp_schedule_write'):
+            return self._write_adjusted_amount(vals)
         res = super().write(vals)
         if 'installment_date' in vals and not self.env.context.get('ftp_skip_date_cascade'):
             for line in self:
@@ -119,6 +126,41 @@ class HrSalaryAdvanceInstallment(models.Model):
             self.advance_id._reopen_if_outstanding()
         return res
 
+    def _write_adjusted_amount(self, vals):
+        """This month's recovery changed on a draft payslip.
+
+        The later installments keep the monthly amount; the schedule is redrawn
+        after this one, so it gets longer or shorter by the difference.
+        """
+        for line in self:
+            if line.state != 'pending' or not line.payslip_id or line.payslip_id.state != 'draft':
+                raise UserError(_(
+                    "An installment amount can only be changed on the draft payslip "
+                    "that is recovering it."))
+            others = line.advance_id._protected_installments() - line
+            balance = line.advance_id.advance_amount - sum(others.mapped('amount'))
+            if vals['amount'] < 0 or line.currency_id.compare_amounts(vals['amount'], balance) > 0:
+                raise UserError(_(
+                    "The recovery for installment %(no)s must be between 0 and the "
+                    "balance still owed, %(balance)s.", no=line.installment_no, balance=balance))
+        for line in self:
+            planned = line.planned_amount or line.amount
+            values = dict(vals, planned_amount=planned)
+            if line.currency_id.compare_amounts(vals['amount'], planned) == 0:
+                values['planned_amount'] = 0
+            super(HrSalaryAdvanceInstallment, line.with_context(ftp_schedule_write=True)).write(values)
+        # sudo: redrawing deletes the untouched lines, which HR officers may not do.
+        self.advance_id.sudo()._generate_installments()
+        return True
+
+    def _restore_planned_amount(self):
+        """Undo a payslip adjustment: the payslip was reset, cancelled or deleted."""
+        adjusted = self.filtered('planned_amount')
+        for line in adjusted:
+            line.with_context(ftp_schedule_write=True).write(
+                {'amount': line.planned_amount, 'planned_amount': 0})
+        adjusted.advance_id.sudo()._generate_installments()
+
     @api.ondelete(at_uninstall=False)
     def _unlink_except_deducted(self):
         if self.filtered(lambda i: i.state == 'deducted' or i.already_paid):
@@ -139,11 +181,17 @@ class HrSalaryAdvanceInstallment(models.Model):
                     "Recovery started automatically on payslip %s.",
                     payslip.display_name))
 
-    def _release(self):
-        """Give the installments back: the payslip was reset or cancelled."""
+    def _release(self, keep_adjustment=False):
+        """Give the installments back: the payslip was reset or cancelled.
+
+        keep_adjustment is for a draft payslip being recomputed, which takes the
+        same installment straight back and must keep the amount typed on it.
+        """
         released = self.filtered(lambda i: i.state in ('pending', 'deducted'))
         advances = released.advance_id
         released.write({'state': 'pending', 'payslip_id': False})
+        if not keep_adjustment:
+            released._restore_planned_amount()
         # A completed advance that loses a recovery is running again.
         for advance in advances:
             if advance.state == 'completed' and advance.currency_id.compare_amounts(
@@ -159,8 +207,14 @@ class HrSalaryAdvanceInstallment(models.Model):
             return
         pending.write({'state': 'deducted'})
         for line in pending:
-            line.advance_id.message_post(body=_(
-                "Installment %(no)s of %(amount)s recovered on payslip %(slip)s.",
-                no=line.installment_no, amount=line.amount,
-                slip=line.payslip_id.display_name))
+            if line.planned_amount:
+                body = _("Installment %(no)s: %(amount)s recovered on payslip %(slip)s "
+                         "instead of the planned %(planned)s.",
+                         no=line.installment_no, amount=line.amount,
+                         slip=line.payslip_id.display_name, planned=line.planned_amount)
+            else:
+                body = _("Installment %(no)s of %(amount)s recovered on payslip %(slip)s.",
+                         no=line.installment_no, amount=line.amount,
+                         slip=line.payslip_id.display_name)
+            line.advance_id.message_post(body=body)
         pending.advance_id._check_completion()
