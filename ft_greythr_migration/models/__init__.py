@@ -1,5 +1,6 @@
 from . import greythr
 from . import payroll
+from . import history
 from . import payslip_report
 from . import payroll_structure
 from . import payslip_run

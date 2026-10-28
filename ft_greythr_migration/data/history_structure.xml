@@ -1,0 +1,263 @@
+<?xml version='1.0' encoding='utf-8'?>
+<odoo>
+    <!-- Payslips paid in greytHR (April - August 2026), held in Odoo with
+         greytHR's own amounts so the year-to-date figures and the income tax
+         projection built on them are complete. Each statement column is a
+         payslip input; the rules below only pay it out, under the same codes
+         as the monthly structure. These salaries are already in the
+         accounts, so validating never posts a journal entry (see
+         models/history.py). -->
+    <record id="greythr_history_structure" model="hr.payroll.structure">
+        <field name="name">Fingertip: greytHR History</field>
+        <field name="code">FT_GREYTHR_HIST</field>
+        <field name="country_id" ref="base.in"/>
+        <field name="type_id" ref="greythr_structure_type"/>
+        <field name="report_id" ref="l10n_in_hr_payroll.action_report_payslip_in"/>
+        <field name="use_worked_day_lines" eval="False"/>
+        <field name="rule_ids" eval="[]"/>
+        <field name="note">greytHR salary statement, as paid. Not recalculated and not posted to accounting.</field>
+    </record>
+    <record id="input_type_hist_days" model="hr.payslip.input.type">
+        <field name="name">History: Days in Month</field>
+        <field name="code">HIST_DAYS</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_lop" model="hr.payslip.input.type">
+        <field name="name">History: LOP Days</field>
+        <field name="code">HIST_LOP</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_effective" model="hr.payslip.input.type">
+        <field name="name">History: Effective Workdays</field>
+        <field name="code">HIST_EFFECTIVE</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_basic" model="hr.payslip.input.type">
+        <field name="name">History: Basic</field>
+        <field name="code">HIST_BASIC</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_hra" model="hr.payslip.input.type">
+        <field name="name">History: HRA</field>
+        <field name="code">HIST_HRA</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_spl" model="hr.payslip.input.type">
+        <field name="name">History: Special Allowance</field>
+        <field name="code">HIST_SPL</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_edu" model="hr.payslip.input.type">
+        <field name="name">History: Children Education Allowance</field>
+        <field name="code">HIST_EDU</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_bonus" model="hr.payslip.input.type">
+        <field name="name">History: Bonus</field>
+        <field name="code">HIST_BONUS</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_meal" model="hr.payslip.input.type">
+        <field name="name">History: Meal Allowance</field>
+        <field name="code">HIST_MEAL</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_lta" model="hr.payslip.input.type">
+        <field name="name">History: Leave Travel Allowance</field>
+        <field name="code">HIST_LTA</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_nta" model="hr.payslip.input.type">
+        <field name="name">History: Non-Taxable Allowance</field>
+        <field name="code">HIST_NTA</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_pf" model="hr.payslip.input.type">
+        <field name="name">History: PF</field>
+        <field name="code">HIST_PF</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_esi" model="hr.payslip.input.type">
+        <field name="name">History: ESI</field>
+        <field name="code">HIST_ESI</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_pt" model="hr.payslip.input.type">
+        <field name="name">History: Professional Tax</field>
+        <field name="code">HIST_PT</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_tds" model="hr.payslip.input.type">
+        <field name="name">History: Income Tax</field>
+        <field name="code">HIST_TDS</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="input_type_hist_other" model="hr.payslip.input.type">
+        <field name="name">History: Other Deduction</field>
+        <field name="code">HIST_OTHER</field>
+        <field name="struct_ids" eval="[(4, ref('greythr_history_structure'))]"/>
+    </record>
+    <record id="greythr_history_rule_basic" model="hr.salary.rule">
+        <field name="name">Basic Salary</field>
+        <field name="code">BASIC</field>
+        <field name="sequence">1</field>
+        <field name="category_id" ref="hr_payroll.BASIC"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_BASIC' in inputs and inputs['HIST_BASIC'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs['HIST_BASIC'].amount</field>
+    </record>
+    <record id="greythr_history_rule_hra" model="hr.salary.rule">
+        <field name="name">House Rent Allowance</field>
+        <field name="code">HRA</field>
+        <field name="sequence">16</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_HRA' in inputs and inputs['HIST_HRA'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs['HIST_HRA'].amount</field>
+    </record>
+    <record id="greythr_history_rule_lta" model="hr.salary.rule">
+        <field name="name">Leave Travel Allowance</field>
+        <field name="code">LTA</field>
+        <field name="sequence">26</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_LTA' in inputs and inputs['HIST_LTA'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs['HIST_LTA'].amount</field>
+    </record>
+    <record id="greythr_history_rule_spl" model="hr.salary.rule">
+        <field name="name">Special Allowance</field>
+        <field name="code">SPL</field>
+        <field name="sequence">31</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_SPL' in inputs and inputs['HIST_SPL'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs['HIST_SPL'].amount</field>
+    </record>
+    <record id="greythr_history_rule_meal" model="hr.salary.rule">
+        <field name="name">Meal Allowance</field>
+        <field name="code">MEAL</field>
+        <field name="sequence">36</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_MEAL' in inputs and inputs['HIST_MEAL'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs['HIST_MEAL'].amount</field>
+    </record>
+    <record id="greythr_history_rule_edualw" model="hr.salary.rule">
+        <field name="name">Children Education Allowance</field>
+        <field name="code">EDUALW</field>
+        <field name="sequence">52</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_EDU' in inputs and inputs['HIST_EDU'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs['HIST_EDU'].amount</field>
+    </record>
+    <record id="greythr_history_rule_bonus" model="hr.salary.rule">
+        <field name="name">Bonus</field>
+        <field name="code">BONUS</field>
+        <field name="sequence">60</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_BONUS' in inputs and inputs['HIST_BONUS'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs['HIST_BONUS'].amount</field>
+    </record>
+    <record id="greythr_history_rule_pt" model="hr.salary.rule">
+        <field name="name">Professional Tax</field>
+        <field name="code">PT</field>
+        <field name="sequence">104</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_PT' in inputs and inputs['HIST_PT'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -inputs['HIST_PT'].amount</field>
+    </record>
+    <record id="greythr_history_rule_pf" model="hr.salary.rule">
+        <field name="name">Provident fund - Employee</field>
+        <field name="code">PF</field>
+        <field name="sequence">107</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_PF' in inputs and inputs['HIST_PF'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -inputs['HIST_PF'].amount</field>
+    </record>
+    <record id="greythr_history_rule_esics" model="hr.salary.rule">
+        <field name="name">Employee&apos;s State Insurance Corporation</field>
+        <field name="code">ESICS</field>
+        <field name="sequence">114</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_ESI' in inputs and inputs['HIST_ESI'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -inputs['HIST_ESI'].amount</field>
+    </record>
+    <record id="greythr_history_rule_tds" model="hr.salary.rule">
+        <field name="name">Tax Deducted at Source</field>
+        <field name="code">TDS</field>
+        <field name="sequence">150</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_TDS' in inputs and inputs['HIST_TDS'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -inputs['HIST_TDS'].amount</field>
+    </record>
+    <record id="greythr_history_rule_other_ded" model="hr.salary.rule">
+        <field name="name">Other Deduction</field>
+        <field name="code">OTHER_DED</field>
+        <field name="sequence">160</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_OTHER' in inputs and inputs['HIST_OTHER'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -inputs['HIST_OTHER'].amount</field>
+    </record>
+    <record id="greythr_history_rule_nta" model="hr.salary.rule">
+        <field name="name">Non-Taxable Allowance</field>
+        <field name="code">NTA</field>
+        <field name="sequence">190</field>
+        <field name="category_id" ref="greythr_nta_category"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'HIST_NTA' in inputs and inputs['HIST_NTA'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs['HIST_NTA'].amount</field>
+    </record>
+    <record id="greythr_history_rule_gross" model="hr.salary.rule">
+        <field name="name">Gross Earnings</field>
+        <field name="code">GROSS</field>
+        <field name="sequence">100</field>
+        <field name="category_id" ref="hr_payroll.GROSS"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = categories['BASIC'] + categories['ALW']</field>
+    </record>
+    <record id="greythr_history_rule_net" model="hr.salary.rule">
+        <field name="name">Net Salary</field>
+        <field name="code">NET</field>
+        <field name="sequence">200</field>
+        <field name="category_id" ref="hr_payroll.NET"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = categories['BASIC'] + categories['ALW'] + categories['DED'] + categories['FT_NTA']</field>
+    </record>
+</odoo>

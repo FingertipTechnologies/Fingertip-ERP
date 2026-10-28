@@ -15,6 +15,7 @@ class HrPayslip(models.Model):
         version = self.version_id
         employee = self.employee_id
         ctc = version.greythr_ctc_id
+        history = self._ft_is_history()
         specs = [
             ('BASIC', 'BASIC', 'full_basic'), ('HRA', 'HRA', 'full_hra'),
             ('SPL', 'SPECIAL ALLOWANCE', 'full_special_allowance'),
@@ -35,7 +36,11 @@ class HrPayslip(models.Model):
         for code, label, source in specs:
             lines = self.line_ids.filtered(lambda line: line.code == code and line.appears_on_payslip)
             actual = sum(lines.mapped('total'))
-            master = (version[NATIVE_COMPONENTS[source]] if source in NATIVE_COMPONENTS else ctc[source]) if ctc else 0
+            if history:
+                # greytHR's own figures; today's salary is not that month's master.
+                master = actual
+            else:
+                master = (version[NATIVE_COMPONENTS[source]] if source in NATIVE_COMPONENTS else ctc[source]) if ctc else 0
             # Keep master salary visible for a fully unpaid month.
             if lines and (actual or master):
                 earnings.append({'name': label, 'master': master, 'actual': actual})
