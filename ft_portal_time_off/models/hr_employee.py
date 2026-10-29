@@ -24,7 +24,21 @@ class HrEmployee(models.Model):
     def write(self, vals):
         if vals.get('leave_manager_id') and self.env['res.users'].browse(vals['leave_manager_id']).sudo().share:
             vals = dict(vals, leave_manager_id=False)
-        return super().write(vals)
+        res = super().write(vals)
+        if 'active' in vals and not self.env.context.get('ft_active_sync'):
+            self._ft_sync_portal_users_active()
+        return res
+
+    def _ft_sync_portal_users_active(self):
+        """A leaver's portal login closes with the employee and reopens when the
+        employee is restored. Back-office users are left alone."""
+        Employee = self.env['hr.employee'].sudo().with_context(active_test=False)
+        for user in self.sudo().with_context(active_test=False).user_id:
+            if not user._is_portal():
+                continue
+            active = any(Employee.search([('user_id', '=', user.id)]).mapped('active'))
+            if user.active != active:
+                user.with_context(ft_active_sync=True).active = active
 
     def _compute_leave_manager(self):
         super()._compute_leave_manager()

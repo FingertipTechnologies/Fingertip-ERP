@@ -372,3 +372,52 @@ class TestPortalLogins(TransactionCase):
             'name': 'Back Office', 'login': 'back.office@example.com', 'partner_id': employee.work_contact_id.id,
             'group_ids': [(6, 0, self.env.ref('base.group_user').ids)]})
         self.assertFalse(employee.user_id)
+
+
+@tagged('post_install', '-at_install')
+class TestArchiveLogins(TransactionCase):
+
+    def employee_with_login(self, name, groups='base.group_portal'):
+        employee = self.env['hr.employee'].create({'name': name, 'company_id': self.env.company.id})
+        employee.user_id = new_test_user(self.env, login=name.lower().replace(' ', '.'), groups=groups)
+        return employee, employee.user_id
+
+    def test_employee_archive_closes_portal_login(self):
+        employee, user = self.employee_with_login('Leaving Soon')
+        hr_officer = new_test_user(self.env, login='hr_officer', groups='base.group_user,hr.group_hr_user')
+        employee.with_user(hr_officer).with_context(no_wizard=True).action_archive()
+        self.assertFalse(user.active)
+        employee.with_user(hr_officer).action_unarchive()
+        self.assertTrue(user.active)
+        # An import writes the field directly.
+        employee.write({'active': False})
+        self.assertFalse(user.active)
+
+    def test_portal_login_archive_closes_employee(self):
+        employee, user = self.employee_with_login('Login Closed')
+        manager, _user = self.employee_with_login('Their Manager')
+        report = self.env['hr.employee'].create({'name': 'Report', 'parent_id': employee.id})
+        user.action_archive()
+        self.assertFalse(employee.active)
+        self.assertFalse(report.parent_id, "archived like HR's Archive button")
+        self.assertTrue(manager.active)
+        user.action_unarchive()
+        self.assertTrue(employee.active)
+
+    def test_back_office_login_untouched(self):
+        employee, user = self.employee_with_login('Back Office', groups='base.group_user')
+        employee.with_context(no_wizard=True).action_archive()
+        self.assertTrue(user.active)
+        employee.action_unarchive()
+        user.action_archive()
+        self.assertTrue(employee.active)
+
+    def test_login_shared_by_two_employees(self):
+        first, user = self.employee_with_login('Two Companies')
+        other = self.env['res.company'].create({'name': 'Other Company'})
+        user.company_ids |= other
+        second = self.env['hr.employee'].create({'name': 'Two Companies', 'user_id': user.id, 'company_id': other.id})
+        first.with_context(no_wizard=True).action_archive()
+        self.assertTrue(user.active, "still employed through the other employee")
+        second.with_context(no_wizard=True).action_archive()
+        self.assertFalse(user.active)

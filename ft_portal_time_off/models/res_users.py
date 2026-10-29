@@ -11,6 +11,26 @@ class ResUsers(models.Model):
         users._ft_link_employees()
         return users
 
+    def write(self, vals):
+        res = super().write(vals)
+        if 'active' in vals and not self.env.context.get('ft_active_sync'):
+            self._ft_sync_employees_active()
+        return res
+
+    def _ft_sync_employees_active(self):
+        """Archiving or restoring a portal login does the same to its employee,
+        the way HR's Archive / Restore buttons would (no departure window)."""
+        Employee = self.env['hr.employee'].sudo().with_context(
+            active_test=False, ft_active_sync=True, no_wizard=True)
+        for user in self.sudo():
+            if not user._is_portal():
+                continue
+            employees = Employee.search([('user_id', '=', user.id), ('active', '!=', user.active)])
+            if user.active:
+                employees.action_unarchive()
+            else:
+                employees.action_archive()
+
     def _ft_link_employees(self):
         """Make each portal user the Related User of the employee whose work
         contact they log in as, so the employee portal knows who they are.
