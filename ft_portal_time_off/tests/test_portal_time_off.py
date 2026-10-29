@@ -299,3 +299,76 @@ class TestPortalTimeOffPages(HttpCase, PortalTimeOffCase):
         page = self.url_open('/my')
         self.assertEqual(page.status_code, 200)
         self.assertNotIn('Team on leave', page.text)
+
+
+@tagged('post_install', '-at_install')
+class TestPortalLogins(TransactionCase):
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.Employee = cls.env['hr.employee']
+
+    def employee(self, name, email):
+        return self.Employee.create({'name': name, 'work_email': email, 'company_id': self.env.company.id})
+
+    def test_grant_from_contacts_links_employee(self):
+        employee = self.employee('Contact Path', 'contact.path@example.com')
+        wizard = self.env['portal.wizard'].create({'partner_ids': [(6, 0, employee.work_contact_id.ids)]})
+        wizard.user_ids.action_grant_access()
+        self.assertTrue(employee.user_id)
+        self.assertTrue(employee.user_id._is_portal())
+        self.assertEqual(employee.user_id.login, 'contact.path@example.com')
+
+        # Access revoked, then given again: the reactivated user is linked again.
+        user = employee.user_id
+        employee.user_id = False
+        wizard = self.env['portal.wizard'].create({'partner_ids': [(6, 0, employee.work_contact_id.ids)]})
+        wizard.user_ids.action_revoke_access()
+        self.assertFalse(user.active)
+        wizard = self.env['portal.wizard'].create({'partner_ids': [(6, 0, employee.work_contact_id.ids)]})
+        wizard.user_ids.action_grant_access()
+        self.assertEqual(employee.user_id, user)
+
+    def test_create_portal_users(self):
+        new = self.employee('New Joiner', 'New.Joiner@Example.com')
+        no_email = self.employee('No Email', False)
+        taken = self.employee('Taken Email', 'taken@example.com')
+        new_test_user(self.env, login='taken@example.com', groups='base.group_user')
+        unlinked = self.employee('Already Portal', 'already.portal@example.com')
+        user = self.env['res.users'].create({
+            'name': 'Already Portal', 'login': 'already.portal@example.com',
+            'partner_id': unlinked.work_contact_id.id, 'group_ids': [(6, 0, self.env.ref('base.group_user').ids)]})
+        user.group_ids = [(6, 0, self.env.ref('base.group_portal').ids)]
+        self.assertFalse(unlinked.user_id)
+        has_user = self.employee('Has User', 'has.user@example.com')
+        has_user.user_id = new_test_user(self.env, login='has.user@example.com', groups='base.group_user')
+
+        result = (new | no_email | taken | unlinked | has_user).action_ft_create_portal_users()
+        message = result['params']['message']
+
+        self.assertTrue(new.user_id._is_portal())
+        self.assertEqual(new.user_id.login, 'new.joiner@example.com')
+        self.assertEqual(new.user_id.partner_id, new.work_contact_id)
+        self.assertEqual(unlinked.user_id, user)
+        self.assertFalse(no_email.user_id)
+        self.assertFalse(taken.user_id)
+        self.assertTrue(has_user.user_id._is_internal())
+        self.assertIn('Invited: New Joiner', message)
+        self.assertIn('now linked: Already Portal', message)
+        for text in ('No Email has no work email', 'taken@example.com is already', '1 already had a user'):
+            self.assertIn(text, message)
+        self.assertEqual(result['params']['type'], 'warning')
+
+    def test_create_portal_users_needs_access_rights(self):
+        employee = self.employee('Someone', 'someone@example.com')
+        hr_officer = new_test_user(self.env, login='hr_officer', groups='base.group_user,hr.group_hr_user')
+        with self.assertRaises(AccessError):
+            employee.with_user(hr_officer).action_ft_create_portal_users()
+
+    def test_back_office_user_not_linked(self):
+        employee = self.employee('Back Office', 'back.office@example.com')
+        self.env['res.users'].create({
+            'name': 'Back Office', 'login': 'back.office@example.com', 'partner_id': employee.work_contact_id.id,
+            'group_ids': [(6, 0, self.env.ref('base.group_user').ids)]})
+        self.assertFalse(employee.user_id)

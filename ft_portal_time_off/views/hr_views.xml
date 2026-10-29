@@ -11,6 +11,44 @@
         </field>
     </record>
 
+    <record id="hr_employee_form_portal_user" model="ir.ui.view">
+        <field name="name">hr.employee.form.portal.user</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <button name="action_create_user" position="after">
+                <button string="Create Portal User" name="action_ft_create_portal_users" type="object"
+                        class="btn btn-secondary" invisible="user_id or not id" groups="base.group_erp_manager"
+                        confirm="A portal login is created on the work email and an invitation email is sent to set the password. Continue?"/>
+            </button>
+        </field>
+    </record>
+
+    <record id="action_hr_employee_create_portal_users_confirmation" model="ir.actions.server">
+        <field name="name">Create Portal Users</field>
+        <field name="model_id" ref="hr.model_hr_employee"/>
+        <field name="binding_model_id" ref="hr.model_hr_employee"/>
+        <field name="binding_view_types">list</field>
+        <field name="group_ids" eval="[(4, ref('base.group_erp_manager'))]"/>
+        <field name="state">code</field>
+        <field name="code">
+if records:
+    action = records.action_ft_create_portal_users_confirmation()
+        </field>
+    </record>
+
+    <record id="action_hr_employee_create_portal_users" model="ir.actions.server">
+        <field name="name">Create Portal Users</field>
+        <field name="model_id" ref="hr.model_hr_employee"/>
+        <field name="group_ids" eval="[(4, ref('base.group_erp_manager'))]"/>
+        <field name="state">code</field>
+        <field name="code">
+employees = env['hr.employee'].browse(env.context.get('selected_ids', []))
+if employees:
+    action = employees.action_ft_create_portal_users()
+        </field>
+    </record>
+
     <record id="res_config_settings_view_form_portal_time_off" model="ir.ui.view">
         <field name="name">res.config.settings.form.portal.time.off</field>
         <field name="model">res.config.settings</field>

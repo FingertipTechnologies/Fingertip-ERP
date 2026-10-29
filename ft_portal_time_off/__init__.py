@@ -16,3 +16,5 @@ def post_init_hook(env):
                   | company.ftp_maternity_leave_type_id | company.ftp_paternity_leave_type_id)
     types |= types.search([('name', 'in', ['Loss of Pay (LOP)', 'Restricted Holiday'])])
     types.write({'ft_portal_visible': True})
+    # Portal users given access from Contacts before the module was installed.
+    env['res.users'].search([('share', '=', True)])._ft_link_employees()

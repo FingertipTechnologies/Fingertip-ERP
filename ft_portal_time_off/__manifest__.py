@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 {
     'name': 'Employee Portal: My Account and Time Off',
-    'version': '19.0.1.2.0',
+    'version': '19.0.1.3.0',
     'category': 'Human Resources/Time Off',
     'summary': 'Employee portal: My account dashboard; leave applied for and approved on the portal',
     'author': 'Fingertip',
