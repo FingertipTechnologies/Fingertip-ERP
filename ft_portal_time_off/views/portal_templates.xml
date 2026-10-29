@@ -1,0 +1,477 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Morning/afternoon marker: the filled half is the part of the day taken. -->
+    <template id="half_marker">
+        <span t-attf-class="o_ft_half o_ft_half_#{period}" aria-hidden="true"/>
+    </template>
+
+    <!-- The employee portal frame: black bar, user menu, footer. ft_page marks the open tab. -->
+    <template id="portal_frame" name="Fingertip Portal Frame">
+        <t t-call="web.frontend_layout">
+            <t t-set="no_header" t-value="True"/>
+            <t t-set="no_footer" t-value="True"/>
+            <t t-set="head">
+                <link rel="preconnect" href="https://fonts.googleapis.com"/>
+                <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin=""/>
+                <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&amp;family=Figtree:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600&amp;display=swap"/>
+            </t>
+            <div class="o_ft_timeoff o_ft_shell">
+                <header class="o_ft_bar">
+                    <div class="o_ft_wrap">
+                        <a class="o_ft_logo" href="/my" aria-label="Fingertip"><b>Finger<i>tip</i></b><small>beyond solutions</small></a>
+                        <nav class="o_ft_nav" aria-label="Portal">
+                            <a href="/my" t-att-aria-current="'page' if ft_page == 'home' else None">My account</a>
+                            <a href="/my/time-off" t-att-aria-current="'page' if ft_page == 'timeoff' else None">Time Off</a>
+                            <span class="o_ft_soon" aria-disabled="true">Payslips <small>Coming soon</small></span>
+                        </nav>
+                        <div class="o_ft_who">
+                            <button type="button" class="o_ft_who_btn" aria-haspopup="true" aria-expanded="false">
+                                <span class="o_ft_me" t-out="(ft_employee.name or '?')[:1].upper()"/>
+                                <span class="o_ft_me_name" t-out="ft_employee.name"/>
+                                <span aria-hidden="true">▾</span>
+                            </button>
+                            <div class="o_ft_menu" hidden="hidden">
+                                <a href="/my/security"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="2"/></svg>Change password</a>
+                                <hr/>
+                                <a href="/web/session/logout?redirect=/web/login"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Sign out</a>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+                <main class="o_ft_wrap">
+                    <t t-out="0"/>
+                </main>
+                <footer class="o_ft_footer"><div class="o_ft_wrap">Copyright © <t t-out="ft_employee.company_id.name"/> · Your details come from your employee record; ask HR to change them.</div></footer>
+            </div>
+        </t>
+    </template>
+
+    <template id="portal_my_time_off" name="My Time Off">
+        <t t-call="ft_portal_time_off.portal_frame">
+            <t t-set="title">Time Off · Fingertip</t>
+            <t t-set="ft_page" t-value="'timeoff'"/>
+            <div class="o_ft_timeoff_page" t-att-data-view="ft_view" t-att-data-done="ft_done or ''"
+                 t-att-data-calendar="ft_calendar_json" t-att-data-working-days="ft_working_days_json"
+                 t-att-data-today="ft_today.isoformat()">
+
+                <div class="o_ft_hero">
+                    <div class="o_ft_rise">
+                        <h1>Time <em>Off</em></h1>
+                        <p class="o_ft_sub" data-view-text="me" t-att-hidden="ft_view == 'team'">Apply for leave, follow your requests, and see every full and half day you have taken.</p>
+                        <p class="o_ft_sub" data-view-text="team" t-att-hidden="ft_view != 'team'">
+                            <t t-if="ft_is_hr">Requests from everyone in the company. Each one shows the exact half days and the balance left after it.</t>
+                            <t t-else="">Requests from the people who report to you. Each one shows the exact half days and the balance left after it.</t>
+                        </p>
+                        <div t-if="ft_can_approve" class="o_ft_switch" role="group" aria-label="View">
+                            <button type="button" data-view="me" t-att-aria-pressed="'true' if ft_view != 'team' else 'false'">My time off</button>
+                            <button type="button" data-view="team" t-att-aria-pressed="'true' if ft_view == 'team' else 'false'">
+                                <t t-if="ft_is_hr">All requests</t><t t-else="">Team approvals</t>
+                                <span t-if="ft_pending" class="o_ft_badge" t-out="len(ft_pending)"/>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="o_ft_stage" aria-hidden="true">
+                        <div>
+                            <div class="o_ft_cube">
+                                <div class="o_ft_face o_ft_f1"><small t-out="ft_today.strftime('%a')"/><b t-out="ft_today.day"/><small t-out="ft_today.strftime('%b %Y')"/></div>
+                                <t t-set="cube_types" t-value="[t for t in ft_types if not t['unpaid']][:2]"/>
+                                <div class="o_ft_face o_ft_f2 o_ft_o">
+                                    <t t-if="cube_types"><small t-out="cube_types[0]['name']"/><b t-out="ft_format_days(cube_types[0]['free']).split(' ')[0]"/><small>days free</small></t>
+                                </div>
+                                <div class="o_ft_face o_ft_f3">
+                                    <t t-if="len(cube_types) > 1"><small t-out="cube_types[1]['name']"/><b t-out="ft_format_days(cube_types[1]['free']).split(' ')[0]"/><small>days free</small></t>
+                                </div>
+                                <t t-set="next_leave" t-value="[l for l in ft_own if l['status'] in ('approved', 'pending') and l['to'] &gt;= ft_today.isoformat()]"/>
+                                <div class="o_ft_face o_ft_f4 o_ft_o">
+                                    <t t-if="next_leave"><small>Next leave</small><b t-out="next_leave[-1]['day']"/><small t-out="next_leave[-1]['month']"/></t>
+                                    <t t-else=""><small>No leave</small><b>—</b><small>planned</small></t>
+                                </div>
+                                <div class="o_ft_face o_ft_f5 o_ft_o"/>
+                                <div class="o_ft_face o_ft_f6"/>
+                            </div>
+                            <div class="o_ft_shadow"/>
+                        </div>
+                    </div>
+                </div>
+
+                <div t-if="ft_error" class="o_ft_alert" role="alert" t-out="ft_error"/>
+
+                <!-- EMPLOYEE -->
+                <div class="o_ft_view_me" t-att-hidden="ft_view == 'team'">
+                    <section>
+                        <div class="o_ft_head"><h2>Your balance</h2><p>Free = today's balance minus leave already planned. Casual and sick leave are added on the 1st of every month.</p></div>
+                        <div class="o_ft_balances">
+                            <t t-foreach="ft_types" t-as="lt">
+                                <div t-attf-class="o_ft_bal o_ft_rise #{'o_ft_unpaid' if lt['unpaid'] else ''}" t-attf-style="animation-delay: #{lt_index * 80}ms">
+                                    <div class="o_ft_ring">
+                                        <svg viewBox="0 0 64 64"><circle class="o_ft_track" cx="32" cy="32" r="27" fill="none" stroke-width="7"/>
+                                            <circle t-if="not lt['unpaid']" class="o_ft_val" cx="32" cy="32" r="27" fill="none" stroke-width="7"
+                                                    stroke-dasharray="169.65" stroke-dashoffset="169.65" t-att-data-ring="lt['ring']"/></svg>
+                                        <b t-if="lt['unpaid']">LOP</b>
+                                        <b t-else="" t-out="ft_format_days(lt['free']).split(' ')[0]"/>
+                                    </div>
+                                    <div>
+                                        <h3 t-out="lt['name']"/>
+                                        <t t-if="lt['unpaid']">
+                                            <p>Unpaid. No balance needed.</p>
+                                            <p><t t-out="ft_format_days(lt['taken'])"/> taken this year</p>
+                                        </t>
+                                        <t t-else="">
+                                            <p><b class="o_ft_free"><t t-out="ft_format_days(lt['free'])"/> free</b></p>
+                                            <p t-if="lt['planned']"><t t-out="ft_format_days(lt['left'])"/> today · <t t-out="ft_format_days(lt['planned'])"/> planned</p>
+                                            <p t-else=""><t t-out="ft_format_days(lt['taken'])"/> taken of <t t-out="ft_format_days(lt['total'])"/></p>
+                                            <p t-if="lt['pending']" class="o_ft_pending"><t t-out="ft_format_days(lt['pending'])"/> waiting for approval</p>
+                                        </t>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                    </section>
+
+                    <section class="o_ft_grid2">
+                        <form class="o_ft_panel o_ft_apply" action="/my/time-off/apply" method="post" novalidate="novalidate">
+                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                            <t t-set="first_type" t-value="ft_types and ft_types[0]"/>
+                            <input type="hidden" name="type_id" t-att-value="first_type and first_type['id']"/>
+                            <input type="hidden" name="from_period" value="am"/>
+                            <input type="hidden" name="to_period" value="pm"/>
+                            <h2>Apply for leave</h2>
+                            <p>Your request goes to <b t-out="ft_manager"/> for approval.</p>
+                            <div class="o_ft_field">
+                                <span class="o_ft_lbl">Leave type</span>
+                                <div class="o_ft_types">
+                                    <t t-foreach="ft_types" t-as="lt">
+                                        <button type="button" t-att-data-type="lt['id']" t-att-data-half="'1' if lt['half_day'] else '0'"
+                                                t-att-aria-pressed="'true' if lt_first else 'false'">
+                                            <b t-out="lt['name']"/>
+                                            <small t-if="lt['unpaid']">Unpaid</small>
+                                            <small t-else=""><t t-out="ft_format_days(max(lt['free'], 0))"/> free</small>
+                                        </button>
+                                    </t>
+                                </div>
+                            </div>
+                            <div class="o_ft_dates">
+                                <div class="o_ft_field">
+                                    <label for="ft_date_from">From</label>
+                                    <input type="date" id="ft_date_from" name="date_from" t-att-value="ft_today.isoformat()" required="required"/>
+                                    <div class="o_ft_seg" data-period="from_period" role="group" aria-label="Starts">
+                                        <button type="button" data-value="am" aria-pressed="true"><t t-call="ft_portal_time_off.half_marker"><t t-set="period" t-value="'am'"/></t>Morning</button>
+                                        <button type="button" data-value="pm" aria-pressed="false"><t t-call="ft_portal_time_off.half_marker"><t t-set="period" t-value="'pm'"/></t>Afternoon</button>
+                                    </div>
+                                </div>
+                                <div class="o_ft_field">
+                                    <label for="ft_date_to">To</label>
+                                    <input type="date" id="ft_date_to" name="date_to" t-att-value="ft_today.isoformat()" required="required"/>
+                                    <div class="o_ft_seg" data-period="to_period" role="group" aria-label="Ends">
+                                        <button type="button" data-value="am" aria-pressed="false"><t t-call="ft_portal_time_off.half_marker"><t t-set="period" t-value="'am'"/></t>Morning</button>
+                                        <button type="button" data-value="pm" aria-pressed="true"><t t-call="ft_portal_time_off.half_marker"><t t-set="period" t-value="'pm'"/></t>Afternoon</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="o_ft_fullday_note" hidden="hidden">This leave type is taken in full days.</p>
+                            <div class="o_ft_summary"><span class="o_ft_sum_text">Checking…</span><b class="o_ft_num o_ft_sum_days">—</b></div>
+                            <div class="o_ft_err" hidden="hidden"/>
+                            <div class="o_ft_field">
+                                <label for="ft_reason">Reason</label>
+                                <textarea id="ft_reason" name="reason" placeholder="A line for your manager"/>
+                            </div>
+                            <button class="o_ft_btn o_ft_primary" type="submit" disabled="disabled">Send for approval</button>
+                        </form>
+
+                        <div class="o_ft_panel">
+                            <div class="o_ft_cal_head">
+                                <h2 class="o_ft_cal_title"/>
+                                <div class="o_ft_cal_nav">
+                                    <button type="button" data-month="-1" aria-label="Previous month">‹</button>
+                                    <button type="button" data-month="1" aria-label="Next month">›</button>
+                                </div>
+                            </div>
+                            <div class="o_ft_cal"/>
+                            <div class="o_ft_legend">
+                                <span><i class="o_ft_lg_f"/>Full day</span><span><i class="o_ft_lg_am"/>Morning</span><span><i class="o_ft_lg_pm"/>Afternoon</span>
+                                <span><i class="o_ft_lg_w"/>Waiting for approval</span><span><i class="o_ft_lg_l"/>Loss of pay</span>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section>
+                        <div class="o_ft_head">
+                            <h2>Your leave</h2>
+                            <div class="o_ft_filters" role="group" aria-label="Show">
+                                <button type="button" data-filter="all" aria-pressed="true">All</button>
+                                <button type="button" data-filter="pending" aria-pressed="false">Waiting</button>
+                                <button type="button" data-filter="approved" aria-pressed="false">Approved</button>
+                                <button type="button" data-filter="refused" aria-pressed="false">Refused</button>
+                            </div>
+                        </div>
+                        <div class="o_ft_list">
+                            <t t-foreach="ft_own" t-as="leave">
+                                <div t-attf-class="o_ft_row #{'o_ft_enter' if ft_done == 'applied' and leave_first else ''}" t-att-data-status="leave['status']">
+                                    <div class="o_ft_chip"><b t-out="leave['day']"/><small t-out="leave['month']"/></div>
+                                    <div class="o_ft_what">
+                                        <b t-out="leave['type']"/> · <t t-out="leave['when']"/>
+                                        <div class="o_ft_sess">
+                                            <t t-foreach="leave['sessions']" t-as="sess">
+                                                <span class="o_ft_tag"><t t-if="sess[0] != 'full'" t-call="ft_portal_time_off.half_marker"><t t-set="period" t-value="sess[0]"/></t><t t-out="sess[1]"/></span>
+                                            </t>
+                                        </div>
+                                        <p t-if="leave['reason'] or leave['refuse_reason']">
+                                            <t t-out="leave['reason']"/>
+                                            <t t-if="leave['refuse_reason']"><br/><strong>Refused by <t t-out="leave['decided_by'] or 'your manager'"/>:</strong> <t t-out="leave['refuse_reason']"/></t>
+                                        </p>
+                                        <form t-if="leave['status'] == 'pending'" t-attf-action="/my/time-off/#{leave['id']}/withdraw" method="post" class="o_ft_withdraw">
+                                            <input type="hidden" name="csrf_token" t-att-value="request.csrf_token()"/>
+                                            <button type="submit" class="o_ft_mini">Withdraw request</button>
+                                        </form>
+                                    </div>
+                                    <div class="o_ft_days"><t t-out="leave['days_label']"/><small t-if="leave['status'] == 'pending'">sent <t t-out="leave['sent_label']"/></small></div>
+                                    <span t-attf-class="o_ft_st o_ft_st_#{leave['status']}" t-out="leave['status_label']"/>
+                                </div>
+                            </t>
+                            <div class="o_ft_empty" t-att-hidden="bool(ft_own)">No leave this year yet. Apply above and it appears here.</div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- MANAGER / HR -->
+                <div t-if="ft_can_approve" class="o_ft_view_team" t-att-hidden="ft_view != 'team'">
+                    <section>
+                        <div class="o_ft_kpis">
+                            <div class="o_ft_kpi o_ft_hot"><b class="o_ft_num" t-out="len(ft_pending)"/><span>Waiting for you</span>
+                                <p t-if="ft_pending">Oldest sent <t t-out="ft_pending[0]['sent_label']"/></p><p t-else="">Nothing to decide</p></div>
+                            <div class="o_ft_kpi"><b class="o_ft_num" t-out="len(ft_off_today)"/><span>Off today</span>
+                                <p><t t-out="', '.join('%s (%s)' % (name, sess.lower()) for name, sess in ft_off_today) or 'Everyone is in'"/></p></div>
+                            <div class="o_ft_kpi"><b class="o_ft_num" t-out="len(ft_next_week)"/><span>Off in the next 7 days</span>
+                                <p><t t-out="', '.join(ft_next_week) or 'Nobody'"/></p></div>
+                        </div>
+                    </section>
+                    <section>
+                        <div class="o_ft_head"><h2>Waiting for your approval</h2><p>Approve, or refuse with a reason the employee will see.</p></div>
+                        <div class="o_ft_queue">
+                            <t t-foreach="ft_pending" t-as="req">
+                                <div class="o_ft_card3d o_ft_rise" t-att-data-leave="req['id']" t-attf-style="animation-delay: #{req_index * 90}ms">
+                                    <div class="o_ft_req">
+                                        <div class="o_ft_req_top"><span class="o_ft_avatar" t-out="req['initials']"/>
+                                            <div><h3 t-out="req['employee']"/><p><t t-if="req['job']"><t t-out="req['job']"/> · </t>sent <t t-out="req['sent_label']"/></p></div></div>
+                                        <div class="o_ft_when">
+                                            <div class="o_ft_end"><small>From</small><b t-out="req['from_label']"/><br/>
+                                                <span class="o_ft_tag"><t t-call="ft_portal_time_off.half_marker"><t t-set="period" t-value="req['fp']"/></t><t t-out="'Morning' if req['fp'] == 'am' else 'Afternoon'"/></span></div>
+                                            <span class="o_ft_arrow">→</span>
+                                            <div class="o_ft_end"><small>To</small><b t-out="req['to_label']"/><br/>
+                                                <span class="o_ft_tag"><t t-call="ft_portal_time_off.half_marker"><t t-set="period" t-value="req['tp']"/></t><t t-out="'End of day' if req['tp'] == 'pm' else 'After morning'"/></span></div>
+                                        </div>
+                                        <div class="o_ft_meta">
+                                            <span class="o_ft_m"><b t-out="req['type']"/></span>
+                                            <span class="o_ft_m o_ft_num" t-out="req['days_label']"/>
+                                            <span t-if="req['unpaid']" class="o_ft_m">Unpaid</span>
+                                            <span t-elif="req['balance_after'] is not None" t-attf-class="o_ft_m #{'o_ft_warn' if req['balance_after'] &lt; 0 else ''}">
+                                                <t t-if="req['balance_after'] &lt; 0">Short by <t t-out="ft_format_days(-req['balance_after'])"/></t>
+                                                <t t-else="">Balance after: <t t-out="ft_format_days(req['balance_after'])"/></t></span>
+                                            <span t-if="req['overlap']" class="o_ft_m">Also off: <t t-out="req['overlap']"/></span>
+                                        </div>
+                                        <blockquote t-if="req['reason']" t-out="req['reason']"/>
+                                        <div class="o_ft_actions"><button type="button" class="o_ft_btn o_ft_ok" data-decide="approve">Approve</button><button type="button" class="o_ft_btn o_ft_no" data-decide="refuse">Refuse</button></div>
+                                        <div class="o_ft_refuse" hidden="hidden">
+                                            <label class="o_ft_lbl" t-attf-for="ft_why_#{req['id']}">Reason for refusing</label>
+                                            <textarea t-attf-id="ft_why_#{req['id']}" placeholder="The employee sees this"/>
+                                            <div class="o_ft_actions"><button type="button" class="o_ft_btn o_ft_ghost" data-decide="cancel">Keep it</button><button type="button" class="o_ft_btn o_ft_no" data-decide="confirm">Refuse request</button></div>
+                                        </div>
+                                        <div class="o_ft_err" hidden="hidden"/>
+                                    </div>
+                                    <div class="o_ft_back"/>
+                                </div>
+                            </t>
+                            <div t-if="not ft_pending" class="o_ft_empty">You’re all caught up. New requests appear here.</div>
+                        </div>
+                    </section>
+                    <section>
+                        <div class="o_ft_head">
+                            <h2>Leave history</h2>
+                            <div class="o_ft_filters">
+                                <select class="o_ft_select" data-history="employee" aria-label="Employee">
+                                    <option value="">Everyone</option>
+                                    <t t-foreach="sorted(set(h['employee'] for h in ft_history))" t-as="name"><option t-att-value="name" t-out="name"/></t>
+                                </select>
+                                <select class="o_ft_select" data-history="type" aria-label="Leave type">
+                                    <option value="">All types</option>
+                                    <t t-foreach="sorted(set(h['type'] for h in ft_history))" t-as="name"><option t-att-value="name" t-out="name"/></t>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="o_ft_tbl"><table>
+                            <thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Days</th><th>Status</th><th>Decided by</th></tr></thead>
+                            <tbody>
+                                <tr t-foreach="ft_history" t-as="h" t-att-data-employee="h['employee']" t-att-data-type="h['type']">
+                                    <td><b t-out="h['employee']"/></td><td t-out="h['type']"/>
+                                    <td><t t-out="h['from_label']"/><span class="o_ft_tag"><t t-call="ft_portal_time_off.half_marker"><t t-set="period" t-value="h['fp']"/></t><t t-out="'Morning' if h['fp'] == 'am' else 'Afternoon'"/></span></td>
+                                    <td><t t-out="h['to_label']"/><span class="o_ft_tag"><t t-call="ft_portal_time_off.half_marker"><t t-set="period" t-value="h['tp']"/></t><t t-out="'End of day' if h['tp'] == 'pm' else 'Morning'"/></span></td>
+                                    <td class="o_ft_num" t-out="h['days_label']"/>
+                                    <td><span t-attf-class="o_ft_st o_ft_st_#{h['status']}" t-out="h['status_label']"/></td>
+                                    <td t-out="h['decided_by'] or '—'"/>
+                                </tr>
+                                <tr t-if="not ft_history"><td colspan="7">No decided leave this year yet.</td></tr>
+                            </tbody>
+                        </table></div>
+                    </section>
+                </div>
+                <div class="o_ft_toast" role="status" aria-live="polite"/>
+            </div>
+        </t>
+    </template>
+
+    <template id="portal_my_dashboard" name="My Account Dashboard">
+        <t t-call="ft_portal_time_off.portal_frame">
+            <t t-set="title">My account · Fingertip</t>
+            <t t-set="ft_page" t-value="'home'"/>
+            <div class="o_ft_dash">
+                <div class="o_ft_hero">
+                    <div class="o_ft_rise">
+                        <div class="o_ft_eyebrow" t-out="ft_now.strftime('%A, ') + str(ft_now.day) + ft_now.strftime(' %B %Y')"/>
+                        <h1><t t-out="ft_greeting"/>, <em t-out="ft_employee.name"/></h1>
+                        <p class="o_ft_sub">
+                            <t t-if="ft_can_approve">Your day at Fingertip at a glance: your details, your time off, the requests waiting for you, and who is away this month.</t>
+                            <t t-else="">Your day at Fingertip at a glance: your details, your time off, and who on your team is away this month.</t>
+                        </p>
+                    </div>
+                    <div class="o_ft_stage" aria-hidden="true">
+                        <div>
+                            <div class="o_ft_cube">
+                                <div class="o_ft_face o_ft_f1"><small t-out="ft_today.strftime('%a')"/><b t-out="ft_today.day"/><small t-out="ft_today.strftime('%b %Y')"/></div>
+                                <t t-set="cube_types" t-value="[t for t in ft_types if not t['unpaid']][:1]"/>
+                                <div class="o_ft_face o_ft_f2 o_ft_o">
+                                    <t t-if="cube_types"><small t-out="cube_types[0]['name']"/><b t-out="ft_format_days(cube_types[0]['free']).split(' ')[0]"/><small>free</small></t>
+                                </div>
+                                <div class="o_ft_face o_ft_f3">
+                                    <small>Waiting</small><b t-out="len(ft_pending) if ft_can_approve else len(ft_waiting)"/><small t-out="'for you' if ft_can_approve else 'for approval'"/>
+                                </div>
+                                <div class="o_ft_face o_ft_f4 o_ft_o">
+                                    <t t-if="ft_next"><small>Next leave</small><b t-out="ft_next['day']"/><small t-out="ft_next['month']"/></t>
+                                    <t t-else=""><small>No leave</small><b>—</b><small>planned</small></t>
+                                </div>
+                                <div class="o_ft_face o_ft_f5 o_ft_o"/>
+                                <div class="o_ft_face o_ft_f6"/>
+                            </div>
+                            <div class="o_ft_shadow"/>
+                        </div>
+                    </div>
+                </div>
+
+                <section class="o_ft_top">
+                    <article class="o_ft_card o_ft_profile o_ft_rise o_ft_tilt" style="animation-delay: 60ms">
+                        <div class="o_ft_p_top">
+                            <span class="o_ft_big" t-out="(ft_employee.name or '?')[:1].upper()"/>
+                            <div>
+                                <h3 t-out="ft_employee.name"/>
+                                <p t-if="ft_job" t-out="ft_job"/>
+                                <span t-if="ft_employee.registration_number" class="o_ft_idchip" t-out="ft_employee.registration_number"/>
+                            </div>
+                        </div>
+                        <dl>
+                            <dt>Manager</dt><dd t-out="ft_employee.parent_id.name or '—'"/>
+                            <dt>Joined</dt><dd><t t-if="ft_joined"><t t-out="str(ft_joined.day) + ft_joined.strftime(' %b %Y')"/> <span class="o_ft_soft">· <t t-out="ft_tenure"/></span></t><t t-else="">—</t></dd>
+                            <dt>Email</dt><dd t-out="ft_employee.work_email or '—'"/>
+                            <dt>Phone</dt><dd class="o_ft_num" t-out="ft_phone or '—'"/>
+                        </dl>
+                    </article>
+
+                    <article class="o_ft_card o_ft_rise o_ft_tilt" style="animation-delay: 140ms">
+                        <div class="o_ft_to_head"><h2>Your time off</h2><a class="o_ft_link" href="/my/time-off">Open Time Off →</a></div>
+                        <div class="o_ft_dbal">
+                            <t t-foreach="ft_types" t-as="lt">
+                                <div class="o_ft_db o_ft_rise" t-attf-style="animation-delay: #{200 + lt_index * 70}ms">
+                                    <div class="o_ft_ring o_ft_ring_s">
+                                        <svg viewBox="0 0 64 64"><circle class="o_ft_track" cx="32" cy="32" r="27" fill="none" stroke-width="7"/>
+                                            <circle t-if="not lt['unpaid']" class="o_ft_val" cx="32" cy="32" r="27" fill="none" stroke-width="7"
+                                                    stroke-dasharray="169.65" stroke-dashoffset="169.65" t-att-data-ring="lt['ring']"/></svg>
+                                        <b t-if="lt['unpaid']">LOP</b>
+                                        <b t-else="" t-out="ft_format_days(lt['free']).split(' ')[0]"/>
+                                    </div>
+                                    <div>
+                                        <h4 t-out="lt['name']"/>
+                                        <p t-if="lt['unpaid']"><t t-out="ft_format_days(lt['taken'])"/> this year</p>
+                                        <p t-else=""><t t-out="ft_format_days(lt['free'])"/> free</p>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                        <div class="o_ft_facts">
+                            <div class="o_ft_fact">
+                                <small>Next leave</small>
+                                <t t-if="ft_next"><b t-out="ft_next['from_label']"/>
+                                    <span><t t-foreach="ft_next['sessions'][:1]" t-as="sess"><span class="o_ft_tag"><t t-if="sess[0] != 'full'" t-call="ft_portal_time_off.half_marker"><t t-set="period" t-value="sess[0]"/></t><t t-out="sess[1]"/></span></t>
+                                        <t t-if="ft_next['status'] == 'pending'"> · waiting</t></span></t>
+                                <t t-else=""><b>None planned</b><span>Apply when you need it</span></t>
+                            </div>
+                            <div t-attf-class="o_ft_fact #{'o_ft_fact_hot' if ft_waiting else ''}">
+                                <small>Waiting for approval</small>
+                                <b><t t-out="len(ft_waiting)"/> <t t-out="'request' if len(ft_waiting) == 1 else 'requests'"/></b>
+                                <span t-if="ft_waiting"><t t-out="ft_waiting[0]['days_label']"/>, sent <t t-out="ft_waiting[0]['sent_label']"/></span>
+                                <span t-else="">Nothing pending</span>
+                            </div>
+                            <div class="o_ft_fact">
+                                <small>Taken this year</small>
+                                <b class="o_ft_num" t-out="ft_format_days(ft_taken_total)"/>
+                                <span t-out="' · '.join('%s %s' % (name, ft_format_days(days).split(' ')[0]) for name, days in ft_taken) or 'None yet'"/>
+                            </div>
+                        </div>
+                        <a class="o_ft_cta" href="/my/time-off">Apply for leave</a>
+                    </article>
+                </section>
+
+                <section t-if="ft_can_approve">
+                    <div class="o_ft_mgr o_ft_rise">
+                        <div>
+                            <h2>Waiting for you</h2>
+                            <div class="o_ft_mgr_big o_ft_num" t-out="len(ft_pending)"/>
+                            <p t-if="ft_pending">Requests from <t t-out="'everyone' if ft_is_hr else 'your team'"/>. The oldest was sent <t t-out="ft_pending[0]['sent_label']"/>.</p>
+                            <p t-else="">Nothing to decide right now.</p>
+                            <div class="o_ft_mgr_stats">
+                                <div><b t-out="len(ft_off_today)"/><span>Off today</span></div>
+                                <div><b t-out="ft_week_off"/><span>Off this week</span></div>
+                                <div><b t-out="ft_format_days(ft_team_month_days).split(' ')[0]"/><span>Team days this month</span></div>
+                            </div>
+                            <a class="o_ft_cta" href="/my/time-off?view=team">Review requests</a>
+                        </div>
+                        <div class="o_ft_mq">
+                            <t t-foreach="ft_pending[:5]" t-as="req">
+                                <a class="o_ft_q" href="/my/time-off?view=team">
+                                    <span class="o_ft_av" t-out="req['initials']"/>
+                                    <span><b><t t-out="req['employee']"/> · <t t-out="req['type']"/></b>
+                                        <span class="o_ft_q_sub"><t t-out="req['when']"/> · sent <t t-out="req['sent_label']"/></span></span>
+                                    <span class="o_ft_q_d" t-out="req['days_label']"/>
+                                </a>
+                            </t>
+                            <p t-if="len(ft_pending) &gt; 5" class="o_ft_q_more">and <t t-out="len(ft_pending) - 5"/> more</p>
+                            <div t-if="not ft_pending" class="o_ft_q_empty">You’re all caught up.</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <div class="o_ft_head"><h2>Team on leave · <t t-out="ft_month.strftime('%B %Y')"/></h2><a class="o_ft_link" href="/my/time-off">Your calendar →</a></div>
+                    <div class="o_ft_strip_wrap">
+                        <div class="o_ft_strip" t-attf-style="--ft-days: #{len(ft_month_days)}">
+                            <div class="o_ft_sname o_ft_sdh">Team</div>
+                            <t t-foreach="ft_month_days" t-as="d">
+                                <div t-attf-class="o_ft_sdh #{'o_ft_soff' if d['off'] else ''} #{'o_ft_stoday' if d['today'] else ''}"><span t-out="d['day'].strftime('%a')[:1]"/><b t-out="d['day'].day"/></div>
+                            </t>
+                            <t t-foreach="ft_month_rows" t-as="row">
+                                <div class="o_ft_sname"><t t-out="row['name']"/><small t-if="row['you']"> (you)</small></div>
+                                <t t-foreach="row['cells']" t-as="cell">
+                                    <t t-set="d" t-value="ft_month_days[cell_index]"/>
+                                    <div t-attf-class="#{'o_ft_soff' if d['off'] else ''} #{'o_ft_stoday' if d['today'] else ''}" t-att-title="cell and cell['label']">
+                                        <i t-if="cell" t-attf-class="o_ft_s_#{cell['part']} #{'o_ft_s_wait' if cell['wait'] else ''}"/>
+                                    </div>
+                                </t>
+                            </t>
+                        </div>
+                    </div>
+                    <div class="o_ft_legend">
+                        <span><i class="o_ft_lg_f"/>Full day</span><span><i class="o_ft_lg_am"/>Morning</span><span><i class="o_ft_lg_pm"/>Afternoon</span>
+                        <span><i class="o_ft_lg_w"/>Waiting for approval</span>
+                    </div>
+                </section>
+            </div>
+        </t>
+    </template>
+</odoo>

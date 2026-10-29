@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="hr_leave_type_form_portal" model="ir.ui.view">
+        <field name="name">hr.leave.type.form.portal</field>
+        <field name="model">hr.leave.type</field>
+        <field name="inherit_id" ref="hr_holidays.edit_holiday_status_form"/>
+        <field name="arch" type="xml">
+            <field name="requires_allocation" position="after">
+                <field name="ft_portal_visible" widget="checkbox"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="res_config_settings_view_form_portal_time_off" model="ir.ui.view">
+        <field name="name">res.config.settings.form.portal.time.off</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="ftp_employee_leave_accrual.res_config_settings_view_form_leave_policy"/>
+        <field name="arch" type="xml">
+            <xpath expr="//block[@name='ftp_leave_policy_container']" position="after">
+                <block title="Employee Portal Time Off" name="ft_portal_time_off_container">
+                    <setting id="ft_time_off_hr_setting" string="HR for Time Off"
+                             help="Can approve or refuse anyone's time off on the portal, and gets an email for every request, decision and withdrawal. The employee's manager always gets them too.">
+                        <field name="ft_time_off_hr_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                    </setting>
+                    <setting id="ft_time_off_email_from_setting" string="Emails From"
+                             help="Sender of the time off emails. Replies go to the HR for Time Off.">
+                        <field name="ft_time_off_email_from" class="w-100"/>
+                    </setting>
+                </block>
+            </xpath>
+        </field>
+    </record>
+</odoo>

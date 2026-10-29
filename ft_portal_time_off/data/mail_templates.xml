@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Portal time off emails. Recipients come from hr.leave._ft_mail_to: the manager and the
+         HR for Time Off (plus the administrator when there is no manager), or the employee. -->
+    <record id="mail_template_leave_request" model="mail.template">
+        <field name="name">Time Off: new request (portal)</field>
+        <field name="model_id" ref="hr_holidays.model_hr_leave"/>
+        <field name="subject">Leave request: {{ object.employee_id.name }} · {{ object.holiday_status_id.name }}</field>
+        <field name="email_from">{{ object.employee_id.sudo().company_id.ft_time_off_email_from }}</field>
+        <field name="email_to">{{ object._ft_mail_to('request') }}</field>
+        <field name="reply_to">{{ object._ft_mail_reply_to() }}</field>
+        <field name="use_default_to" eval="False"/>
+        <field name="auto_delete" eval="True"/>
+        <field name="body_html" type="html">
+<t t-set="v" t-value="object._ft_mail_values()"/>
+<div style="margin:0;padding:24px 12px;background:#f6f3f0;font-family:Figtree,'Segoe UI',Arial,sans-serif;color:#121110;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:0 auto;border-collapse:collapse;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e8e1da;">
+    <tr><td style="background:#121110;padding:16px 24px;color:#f7f3ef;">
+      <span style="font-size:20px;font-weight:800;letter-spacing:-.02em;">Finger<span style="color:#ff6a14;">tip</span></span>
+      <span style="float:right;font-size:11px;letter-spacing:.2em;text-transform:uppercase;opacity:.7;line-height:28px;">Time Off</span>
+    </td></tr>
+    <tr><td style="padding:24px 24px 8px;">
+      <div style="font-size:22px;font-weight:800;line-height:1.2;"><t t-out="object.employee_id.name"/> has applied for leave</div>
+      <div style="font-size:14px;color:#6d655e;margin-top:6px;">Waiting for approval by the manager or HR. One approval is enough.</div>
+    </td></tr>
+    <tr><td style="padding:12px 24px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f6f3f0;border-radius:12px;font-size:14px;">
+        <tr><td style="padding:12px 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Leave</td></tr>
+        <tr><td style="padding:0 16px 10px;font-weight:700;"><t t-out="v['type']"/> · <t t-out="v['days_label']"/></td></tr>
+        <tr><td style="padding:0 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">When</td></tr>
+        <tr><td style="padding:0 16px 10px;"><t t-out="v['when']"/><br/>
+          <t t-foreach="v['sessions']" t-as="sess"><span style="display:inline-block;margin:4px 6px 0 0;padding:1px 9px;border:1px solid #e8e1da;border-radius:999px;font-size:12px;color:#6d655e;background:#ffffff;"><t t-if="sess[0] != 'full'">&#9680; </t><t t-out="sess[1]"/></span></t>
+        </td></tr>
+        <t t-if="v['reason']"><tr><td style="padding:0 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Reason</td></tr>
+        <tr><td style="padding:0 16px 10px;"><t t-out="v['reason']"/></td></tr></t>
+        <t t-if="v['balance_label']"><tr><td style="padding:0 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Balance after approval</td></tr>
+        <tr><td t-attf-style="padding:0 16px 12px;font-weight:700;color:#{'#c9372b' if v['balance_after'] &lt; 0 else '#121110'}"><t t-out="v['balance_label']"/></td></tr></t>
+      </table>
+    </td></tr>
+    <tr><td style="padding:8px 24px 24px;">
+      <a t-att-href="v['base_url'] + '/my/time-off?view=team'" style="display:inline-block;background:#ff6a14;color:#121110;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:12px;">Review request</a>
+    </td></tr>
+    <tr><td style="padding:14px 24px;border-top:1px solid #e8e1da;font-size:12px;color:#6d655e;">Sent by Fingertip Time Off. Reply to this email to reach HR.</td></tr>
+  </table>
+</div>
+        </field>
+    </record>
+    <record id="mail_template_leave_decided_employee" model="mail.template">
+        <field name="name">Time Off: decision to the employee (portal)</field>
+        <field name="model_id" ref="hr_holidays.model_hr_leave"/>
+        <field name="subject">Your {{ object.holiday_status_id.name }} is {{ 'approved' if object.state == 'validate' else 'refused' }}</field>
+        <field name="email_from">{{ object.employee_id.sudo().company_id.ft_time_off_email_from }}</field>
+        <field name="email_to">{{ object._ft_mail_to('decided_employee') }}</field>
+        <field name="reply_to">{{ object._ft_mail_reply_to() }}</field>
+        <field name="use_default_to" eval="False"/>
+        <field name="auto_delete" eval="True"/>
+        <field name="body_html" type="html">
+<t t-set="v" t-value="object._ft_mail_values()"/>
+<div style="margin:0;padding:24px 12px;background:#f6f3f0;font-family:Figtree,'Segoe UI',Arial,sans-serif;color:#121110;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:0 auto;border-collapse:collapse;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e8e1da;">
+    <tr><td style="background:#121110;padding:16px 24px;color:#f7f3ef;">
+      <span style="font-size:20px;font-weight:800;letter-spacing:-.02em;">Finger<span style="color:#ff6a14;">tip</span></span>
+      <span style="float:right;font-size:11px;letter-spacing:.2em;text-transform:uppercase;opacity:.7;line-height:28px;">Time Off</span>
+    </td></tr>
+    <tr><td style="padding:24px 24px 8px;">
+      <div style="font-size:22px;font-weight:800;line-height:1.2;">Your leave is <t t-out="'approved' if object.state == 'validate' else 'refused'"/></div>
+      <div style="font-size:14px;color:#6d655e;margin-top:6px;"><t t-out="ctx.get('ft_decider')"/> <t t-out="'approved' if object.state == 'validate' else 'refused'"/> your request.</div>
+    </td></tr>
+    <tr><td style="padding:12px 24px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f6f3f0;border-radius:12px;font-size:14px;">
+        <tr><td style="padding:12px 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Leave</td></tr>
+        <tr><td style="padding:0 16px 10px;font-weight:700;"><t t-out="v['type']"/> · <t t-out="v['days_label']"/></td></tr>
+        <tr><td style="padding:0 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">When</td></tr>
+        <tr><td style="padding:0 16px 10px;"><t t-out="v['when']"/><br/>
+          <t t-foreach="v['sessions']" t-as="sess"><span style="display:inline-block;margin:4px 6px 0 0;padding:1px 9px;border:1px solid #e8e1da;border-radius:999px;font-size:12px;color:#6d655e;background:#ffffff;"><t t-if="sess[0] != 'full'">&#9680; </t><t t-out="sess[1]"/></span></t>
+        </td></tr>
+        <t t-if="v['reason']"><tr><td style="padding:0 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Reason</td></tr>
+        <tr><td style="padding:0 16px 10px;"><t t-out="v['reason']"/></td></tr></t>
+        <t t-if="v['status'] == 'refused' and v['refuse_reason']"><tr><td style="padding:0 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Reason for refusing</td></tr>
+        <tr><td style="padding:0 16px 12px;color:#c9372b;font-weight:600;"><t t-out="v['refuse_reason']"/></td></tr></t>
+      </table>
+    </td></tr>
+    <tr><td style="padding:8px 24px 24px;">
+      <a t-att-href="v['base_url'] + '/my/time-off'" style="display:inline-block;background:#ff6a14;color:#121110;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:12px;">Open Time Off</a>
+    </td></tr>
+    <tr><td style="padding:14px 24px;border-top:1px solid #e8e1da;font-size:12px;color:#6d655e;">Sent by Fingertip Time Off. Reply to this email to reach HR.</td></tr>
+  </table>
+</div>
+        </field>
+    </record>
+    <record id="mail_template_leave_decided_approvers" model="mail.template">
+        <field name="name">Time Off: decision to manager and HR (portal)</field>
+        <field name="model_id" ref="hr_holidays.model_hr_leave"/>
+        <field name="subject">{{ 'Approved' if object.state == 'validate' else 'Refused' }}: {{ object.employee_id.name }} · {{ object.holiday_status_id.name }}</field>
+        <field name="email_from">{{ object.employee_id.sudo().company_id.ft_time_off_email_from }}</field>
+        <field name="email_to">{{ object._ft_mail_to('decided_approvers') }}</field>
+        <field name="reply_to">{{ object._ft_mail_reply_to() }}</field>
+        <field name="use_default_to" eval="False"/>
+        <field name="auto_delete" eval="True"/>
+        <field name="body_html" type="html">
+<t t-set="v" t-value="object._ft_mail_values()"/>
+<div style="margin:0;padding:24px 12px;background:#f6f3f0;font-family:Figtree,'Segoe UI',Arial,sans-serif;color:#121110;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:0 auto;border-collapse:collapse;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e8e1da;">
+    <tr><td style="background:#121110;padding:16px 24px;color:#f7f3ef;">
+      <span style="font-size:20px;font-weight:800;letter-spacing:-.02em;">Finger<span style="color:#ff6a14;">tip</span></span>
+      <span style="float:right;font-size:11px;letter-spacing:.2em;text-transform:uppercase;opacity:.7;line-height:28px;">Time Off</span>
+    </td></tr>
+    <tr><td style="padding:24px 24px 8px;">
+      <div style="font-size:22px;font-weight:800;line-height:1.2;"><t t-out="object.employee_id.name"/>'s leave was <t t-out="'approved' if object.state == 'validate' else 'refused'"/></div>
+      <div style="font-size:14px;color:#6d655e;margin-top:6px;">Decided by <t t-out="ctx.get('ft_decider')"/> on the portal. Nothing more to do.</div>
+    </td></tr>
+    <tr><td style="padding:12px 24px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f6f3f0;border-radius:12px;font-size:14px;">
+        <tr><td style="padding:12px 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Leave</td></tr>
+        <tr><td style="padding:0 16px 10px;font-weight:700;"><t t-out="v['type']"/> · <t t-out="v['days_label']"/></td></tr>
+        <tr><td style="padding:0 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">When</td></tr>
+        <tr><td style="padding:0 16px 10px;"><t t-out="v['when']"/><br/>
+          <t t-foreach="v['sessions']" t-as="sess"><span style="display:inline-block;margin:4px 6px 0 0;padding:1px 9px;border:1px solid #e8e1da;border-radius:999px;font-size:12px;color:#6d655e;background:#ffffff;"><t t-if="sess[0] != 'full'">&#9680; </t><t t-out="sess[1]"/></span></t>
+        </td></tr>
+        <t t-if="v['reason']"><tr><td style="padding:0 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Reason</td></tr>
+        <tr><td style="padding:0 16px 10px;"><t t-out="v['reason']"/></td></tr></t>
+        <t t-if="v['status'] == 'refused' and v['refuse_reason']"><tr><td style="padding:0 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Reason for refusing</td></tr>
+        <tr><td style="padding:0 16px 12px;color:#c9372b;font-weight:600;"><t t-out="v['refuse_reason']"/></td></tr></t>
+      </table>
+    </td></tr>
+    <tr><td style="padding:8px 24px 24px;">
+      <a t-att-href="v['base_url'] + '/my/time-off?view=team'" style="display:inline-block;background:#ff6a14;color:#121110;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:12px;">See team leave</a>
+    </td></tr>
+    <tr><td style="padding:14px 24px;border-top:1px solid #e8e1da;font-size:12px;color:#6d655e;">Sent by Fingertip Time Off. Reply to this email to reach HR.</td></tr>
+  </table>
+</div>
+        </field>
+    </record>
+    <record id="mail_template_leave_withdrawn" model="mail.template">
+        <field name="name">Time Off: request withdrawn (portal)</field>
+        <field name="model_id" ref="hr_holidays.model_hr_leave"/>
+        <field name="subject">Withdrawn: {{ object.employee_id.name }} · {{ object.holiday_status_id.name }}</field>
+        <field name="email_from">{{ object.employee_id.sudo().company_id.ft_time_off_email_from }}</field>
+        <field name="email_to">{{ object._ft_mail_to('withdrawn') }}</field>
+        <field name="reply_to">{{ object._ft_mail_reply_to() }}</field>
+        <field name="use_default_to" eval="False"/>
+        <field name="auto_delete" eval="True"/>
+        <field name="body_html" type="html">
+<t t-set="v" t-value="object._ft_mail_values()"/>
+<div style="margin:0;padding:24px 12px;background:#f6f3f0;font-family:Figtree,'Segoe UI',Arial,sans-serif;color:#121110;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:0 auto;border-collapse:collapse;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e8e1da;">
+    <tr><td style="background:#121110;padding:16px 24px;color:#f7f3ef;">
+      <span style="font-size:20px;font-weight:800;letter-spacing:-.02em;">Finger<span style="color:#ff6a14;">tip</span></span>
+      <span style="float:right;font-size:11px;letter-spacing:.2em;text-transform:uppercase;opacity:.7;line-height:28px;">Time Off</span>
+    </td></tr>
+    <tr><td style="padding:24px 24px 8px;">
+      <div style="font-size:22px;font-weight:800;line-height:1.2;"><t t-out="object.employee_id.name"/> withdrew a leave request</div>
+      <div style="font-size:14px;color:#6d655e;margin-top:6px;">The request is cancelled. Nothing more to do.</div>
+    </td></tr>
+    <tr><td style="padding:12px 24px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;background:#f6f3f0;border-radius:12px;font-size:14px;">
+        <tr><td style="padding:12px 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Leave</td></tr>
+        <tr><td style="padding:0 16px 10px;font-weight:700;"><t t-out="v['type']"/> · <t t-out="v['days_label']"/></td></tr>
+        <tr><td style="padding:0 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">When</td></tr>
+        <tr><td style="padding:0 16px 10px;"><t t-out="v['when']"/><br/>
+          <t t-foreach="v['sessions']" t-as="sess"><span style="display:inline-block;margin:4px 6px 0 0;padding:1px 9px;border:1px solid #e8e1da;border-radius:999px;font-size:12px;color:#6d655e;background:#ffffff;"><t t-if="sess[0] != 'full'">&#9680; </t><t t-out="sess[1]"/></span></t>
+        </td></tr>
+        <t t-if="v['reason']"><tr><td style="padding:0 16px 4px;color:#6d655e;font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;">Reason</td></tr>
+        <tr><td style="padding:0 16px 10px;"><t t-out="v['reason']"/></td></tr></t>
+
+      </table>
+    </td></tr>
+    <tr><td style="padding:8px 24px 24px;">
+      <a t-att-href="v['base_url'] + '/my/time-off?view=team'" style="display:inline-block;background:#ff6a14;color:#121110;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:12px;">See team leave</a>
+    </td></tr>
+    <tr><td style="padding:14px 24px;border-top:1px solid #e8e1da;font-size:12px;color:#6d655e;">Sent by Fingertip Time Off. Reply to this email to reach HR.</td></tr>
+  </table>
+</div>
+        </field>
+    </record>
+</odoo>
