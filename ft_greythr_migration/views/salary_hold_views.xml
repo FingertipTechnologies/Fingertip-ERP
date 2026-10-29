@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Leaver's final salary: held on the payslip until the release date and
+         exit clearance, then released by Payroll and paid as usual. -->
+    <record id="view_hr_payslip_form_salary_hold" model="ir.ui.view">
+        <field name="name">hr.payslip.form.salary.hold</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="hr_payroll.view_hr_payslip_form"/>
+        <field name="priority">90</field>
+        <field name="arch" type="xml">
+            <button name="action_payslip_paid" position="attributes">
+                <attribute name="invisible" add="ft_salary_hold" separator=" or "/>
+            </button>
+            <button name="action_payslip_payment_report" position="attributes">
+                <attribute name="invisible" add="ft_salary_hold" separator=" or "/>
+            </button>
+            <button name="action_register_payment" position="attributes">
+                <attribute name="invisible" add="ft_salary_hold" separator=" or "/>
+            </button>
+            <button name="action_payslip_paid" position="before">
+                <button name="action_ft_release_salary" type="object" string="Release Salary" class="oe_highlight"
+                        invisible="not ft_salary_hold or state in ('draft', 'cancel')"
+                        groups="hr_payroll.group_hr_payroll_manager"
+                        confirm="Release this held salary for payment?"/>
+            </button>
+            <xpath expr="//header" position="after">
+                <div class="alert alert-warning" role="alert" invisible="not ft_salary_hold">
+                    Final salary on hold until <field name="ft_hold_release_date" readonly="1" class="fw-bold"/>.
+                    <span invisible="ft_exit_cleared_date">Exit clearance is not done yet.</span>
+                    <span invisible="not ft_exit_cleared_date">Exit clearance done on <field name="ft_exit_cleared_date"/>.</span>
+                    It is left out of every payment until Payroll releases it.
+                </div>
+            </xpath>
+            <page name="account_info" position="before">
+                <page string="Exit Hold" name="ft_salary_hold" invisible="not ft_departure_date and not ft_salary_hold">
+                    <group>
+                        <group>
+                            <field name="ft_departure_date"/>
+                            <field name="ft_salary_hold" readonly="state in ('paid', 'cancel')"/>
+                            <field name="ft_hold_release_date" invisible="not ft_salary_hold" readonly="state in ('paid', 'cancel')"/>
+                        </group>
+                        <group>
+                            <field name="ft_exit_cleared_date"/>
+                            <field name="ft_salary_released_date" invisible="not ft_salary_released_date"/>
+                            <field name="ft_salary_released_by" invisible="not ft_salary_released_date"/>
+                        </group>
+                    </group>
+                </page>
+            </page>
+        </field>
+    </record>
+
+    <record id="view_hr_payslip_tree_salary_hold" model="ir.ui.view">
+        <field name="name">hr.payslip.list.salary.hold</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="hr_payroll.view_hr_payslip_tree"/>
+        <field name="arch" type="xml">
+            <field name="net_wage" position="after">
+                <field name="ft_salary_hold" optional="show"/>
+                <field name="ft_hold_release_date" optional="hide"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_hr_payslip_filter_salary_hold" model="ir.ui.view">
+        <field name="name">hr.payslip.search.salary.hold</field>
+        <field name="model">hr.payslip</field>
+        <field name="inherit_id" ref="hr_payroll.view_hr_payslip_filter"/>
+        <field name="arch" type="xml">
+            <filter name="filter_issue" position="before">
+                <filter string="Salary on Hold" name="ft_salary_hold" domain="[('ft_salary_hold', '=', True)]"/>
+            </filter>
+        </field>
+    </record>
+
+    <record id="action_ft_salary_hold" model="ir.actions.act_window">
+        <field name="name">Salary on Hold</field>
+        <field name="res_model">hr.payslip</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[('ft_salary_hold', '=', True), ('state', '!=', 'cancel')]</field>
+        <field name="context">{'search_default_ft_salary_hold': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No salary on hold</p>
+            <p>The payslip of the month an employee leaves in is held here until its
+               release date and the employee's exit clearance.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_ft_salary_hold" name="Salary on Hold" action="action_ft_salary_hold"
+              parent="hr_payroll.menu_hr_payroll_payslips" sequence="85"
+              groups="hr_payroll.group_hr_payroll_user"/>
+
+    <record id="view_employee_form_exit_clearance" model="ir.ui.view">
+        <field name="name">hr.employee.form.exit.clearance</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <field name="departure_date" position="after">
+                <field name="ft_exit_cleared_date" groups="hr.group_hr_user"/>
+                <field name="ft_exit_cleared_by" groups="hr.group_hr_user" invisible="not ft_exit_cleared_date"/>
+                <div colspan="2" groups="hr.group_hr_user">
+                    <button name="action_ft_exit_clearance" type="object" string="Confirm Exit Clearance"
+                            class="btn-primary" invisible="ft_exit_cleared_date"
+                            confirm="Confirm that every exit formality of this employee is complete?"/>
+                    <button name="action_ft_undo_exit_clearance" type="object" string="Undo Exit Clearance"
+                            class="btn-secondary" invisible="not ft_exit_cleared_date"/>
+                </div>
+            </field>
+        </field>
+    </record>
+
+    <record id="res_config_settings_view_form_salary_hold" model="ir.ui.view">
+        <field name="name">res.config.settings.form.salary.hold</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="hr_payroll.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <setting id="contract_notice_period" position="before">
+                <setting string="Leaver Salary Hold" id="ft_salary_hold_days"
+                         help="The final salary of a leaver is paid this many days after the departure date, once exit clearance is done.">
+                    <field name="ft_salary_hold_days" class="o_light_label" style="width: 4rem"/> days
+                </setting>
+            </setting>
+        </field>
+    </record>
+</odoo>

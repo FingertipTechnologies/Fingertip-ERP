@@ -10,3 +10,5 @@ from . import res_bank
 from . import probation
 from . import professional_tax
 from . import work_entry_versions
+from . import salary_register
+from . import salary_hold

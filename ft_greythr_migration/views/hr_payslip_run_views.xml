@@ -16,6 +16,10 @@
                         invisible="state != '02_close' or not ft_draft_move_count"
                         options="{'is_priority': True}"/>
             </button>
+            <button name="action_payment_report" position="after">
+                <button name="action_ft_salary_register" type="object" class="btn btn-secondary"
+                        string="Salary Register" invisible="not payslip_count"/>
+            </button>
         </field>
     </record>
 </odoo>
