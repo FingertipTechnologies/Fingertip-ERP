@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="ft_sales_forecast_view_list" model="ir.ui.view">
+        <field name="name">ft.sales.forecast.view.list</field>
+        <field name="model">ft.sales.forecast</field>
+        <field name="arch" type="xml">
+            <list string="Forecast">
+                <field name="date"/>
+                <field name="partner_id"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="amount" sum="Total"/>
+                <field name="description" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="ft_sales_forecast_view_form" model="ir.ui.view">
+        <field name="name">ft.sales.forecast.view.form</field>
+        <field name="model">ft.sales.forecast</field>
+        <field name="arch" type="xml">
+            <form string="Forecast">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="partner_id" options="{'no_quick_create': True}"/>
+                            <field name="date"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="amount"/>
+                        </group>
+                    </group>
+                    <separator string="Description"/>
+                    <field name="description" nolabel="1" placeholder="What is this forecast for?"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="ft_sales_forecast_view_graph" model="ir.ui.view">
+        <field name="name">ft.sales.forecast.view.graph</field>
+        <field name="model">ft.sales.forecast</field>
+        <field name="arch" type="xml">
+            <graph string="Forecast" type="bar">
+                <field name="date" interval="month"/>
+                <field name="amount" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- Whole calendar months. Filter domains must stay flat literals: anything
+         else crashes the web client. "today -3m =1m +3m" is 1 April of the
+         current April-March financial year. -->
+    <record id="ft_sales_forecast_view_search" model="ir.ui.view">
+        <field name="name">ft.sales.forecast.view.search</field>
+        <field name="model">ft.sales.forecast</field>
+        <field name="arch" type="xml">
+            <search string="Forecast">
+                <field name="partner_id"/>
+                <field name="description"/>
+                <filter name="filter_this_month" string="This Month"
+                        domain="[('date', '&gt;=', 'today =1d'), ('date', '&lt;', 'today =1d +1m')]"/>
+                <filter name="filter_next_month" string="Next Month"
+                        domain="[('date', '&gt;=', 'today =1d +1m'), ('date', '&lt;', 'today =1d +2m')]"/>
+                <filter name="filter_next_3_months" string="Next 3 Months"
+                        domain="[('date', '&gt;=', 'today =1d'), ('date', '&lt;', 'today =1d +3m')]"/>
+                <filter name="filter_next_6_months" string="Next 6 Months"
+                        domain="[('date', '&gt;=', 'today =1d'), ('date', '&lt;', 'today =1d +6m')]"/>
+                <filter name="filter_financial_year" string="This Financial Year"
+                        domain="[('date', '&gt;=', 'today -3m =1m =1d +3m'), ('date', '&lt;', 'today -3m =1m =1d +3m +1y')]"/>
+                <filter name="filter_past" string="Past"
+                        domain="[('date', '&lt;', 'today')]"/>
+                <separator/>
+                <filter name="group_by_partner" string="Customer" context="{'group_by': 'partner_id'}"/>
+                <!-- Odoo shows a date group as a Year / Quarter / Month / Week / Day submenu -->
+                <filter name="group_by_date" string="Date" context="{'group_by': 'date:month'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ft_sales_forecast" model="ir.actions.act_window">
+        <field name="name">Forecast</field>
+        <field name="res_model">ft.sales.forecast</field>
+        <field name="view_mode">list,graph,form</field>
+        <field name="search_view_id" ref="ft_sales_forecast_view_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Add your first forecast</p>
+            <p>Record the amount you expect from a customer and when you expect it.</p>
+        </field>
+    </record>
+
+    <!-- Sales top menu: Activities is sequence 25 and Products 30 -->
+    <menuitem id="menu_ft_sales_forecast"
+              name="Forecast"
+              parent="sale.sale_menu_root"
+              action="action_ft_sales_forecast"
+              groups="sales_team.group_sale_salesman"
+              sequence="26"/>
+</odoo>
