@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_crm_erp_receiver" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.crm.erp.receiver</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app string="CRM/PMS API Receiver" name="crm_erp_api_receiver">
+                    <block title="CRM to ERP (new Won customers)">
+                        <setting string="CRM/PMS Sender Bearer Token">
+                            <field name="crm_erp_receiver_token" password="True"/>
+                        </setting>
+                    </block>
+                    <block title="ERP to CRM/PMS (existing company codes only)">
+                        <setting string="CRM/PMS Customer Code API URL">
+                            <field name="crm_pms_api_url"/>
+                        </setting>
+                        <setting string="CRM/PMS Receiver Bearer Token">
+                            <field name="crm_pms_api_token" password="True"/>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>

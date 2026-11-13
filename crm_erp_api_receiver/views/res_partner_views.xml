@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_partner_form_erp_customer_code" model="ir.ui.view">
+        <field name="name">res.partner.form.erp.customer.code</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='vat']" position="before">
+                <label for="customer_code"
+                       string="Customer Code"
+                       invisible="not is_company"/>
+                <div invisible="not is_company">
+                    <field name="customer_code" nolabel="1" readonly="1"/>
+                </div>
+                <field name="crm_sync_state" string="CRM/PMS Status" invisible="not is_company" readonly="1"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_partner_search_erp_customer_code" model="ir.ui.view">
+        <field name="name">res.partner.search.erp.customer.code</field>
+        <field name="model">res.partner</field>
+
+        <!-- Correct Search View -->
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
+
+        <field name="arch" type="xml">
+
+            <xpath expr="//search" position="inside">
+
+                <!-- Search Fields -->
+
+                <field name="customer_code"
+                       string="Customer Code"/>
+
+                <field name="crm_sync_state"
+                       string="CRM/PMS Status"/>
+
+                <separator/>
+
+                <!-- Filters -->
+
+                <filter name="filter_erp_pending"
+                        string="CRM/PMS Pending"
+                        domain="[('crm_sync_state', '=', 'pending')]"/>
+
+                <filter name="filter_erp_success"
+                        string="CRM/PMS Synchronized"
+                        domain="[('crm_sync_state', '=', 'success')]"/>
+
+                <filter name="filter_erp_failed"
+                        string="CRM/PMS Failed"
+                        domain="[('crm_sync_state', '=', 'failed')]"/>
+
+                <filter name="filter_erp_not_found"
+                        string="CRM/PMS Not Found"
+                        domain="[('crm_sync_state', '=', 'not_found')]"/>
+
+                <separator/>
+
+                <!-- Group By -->
+
+                <filter name="group_by_crm_sync_state"
+                        string="CRM/PMS Status"
+                        context="{'group_by': 'crm_sync_state'}"/>
+
+            </xpath>
+
+        </field>
+    </record>
+</odoo>
+
+
