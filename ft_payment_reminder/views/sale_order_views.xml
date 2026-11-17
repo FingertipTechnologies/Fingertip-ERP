@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_order_form_payment_reminder" model="ir.ui.view">
+        <field name="name">sale.order.form.payment.reminder</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <group name="sales_person" position="inside">
+                <field name="ft_stop_reminder" widget="radio" options="{'horizontal': true}"/>
+                <field name="ft_reminder_last_date" invisible="not ft_reminder_last_date"/>
+                <field name="ft_reminder_last_status" invisible="not ft_reminder_last_status"/>
+            </group>
+        </field>
+    </record>
+</odoo>

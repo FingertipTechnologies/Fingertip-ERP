@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+    <record id="mail_template_invoice_overdue" model="mail.template">
+        <field name="name">Payment Reminder: Invoice Overdue</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="subject">Reminder Outstanding Invoice {{ object.name }}</field>
+        <field name="email_from">{{ object.company_id.email_formatted }}</field>
+        <field name="partner_to">{{ object._ft_reminder_partner().id }}</field>
+        <field name="lang">{{ object._ft_reminder_partner().lang }}</field>
+        <field name="report_template_ids" eval="[(6, 0, [ref('custom_invoice.custom_invoice_report')])]"/>
+        <field name="auto_delete" eval="False"/>
+        <field name="body_html" type="html">
+<div style="margin: 0px; padding: 0px; font-size: 13px;">
+    <p>Hi <t t-out="object._ft_reminder_partner().name or ''">Customer</t>,</p>
+    <p>An amount of <t t-out="object._ft_reminder_amount_text()">₹0.00</t> against Invoice <t t-out="object.name or ''">INV/001</t> is overdue.</p>
+    <p>Request to clear the payment at the earliest to continue uninterrupted services.</p>
+    <p>Fingertip</p>
+</div>
+        </field>
+    </record>
+    <record id="mail_template_invoice_before_due" model="mail.template">
+        <field name="name">Payment Reminder: Invoice Due Soon</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="subject">Reminder Invoice {{ object.name }} Due on {{ object._ft_reminder_due_text() }}</field>
+        <field name="email_from">{{ object.company_id.email_formatted }}</field>
+        <field name="partner_to">{{ object._ft_reminder_partner().id }}</field>
+        <field name="lang">{{ object._ft_reminder_partner().lang }}</field>
+        <field name="report_template_ids" eval="[(6, 0, [ref('custom_invoice.custom_invoice_report')])]"/>
+        <field name="auto_delete" eval="False"/>
+        <field name="body_html" type="html">
+<div style="margin: 0px; padding: 0px; font-size: 13px;">
+    <p>Hi <t t-out="object._ft_reminder_partner().name or ''">Customer</t>,</p>
+    <p>Gentle Reminder an amount of <t t-out="object._ft_reminder_amount_text()">₹0.00</t> against Invoice <t t-out="object.name or ''">INV/001</t> will be due by <t t-out="object._ft_reminder_due_text()">01-Jan-2026</t>.</p>
+    <p>Request to clear before due date.</p>
+    <p>Fingertip</p>
+</div>
+        </field>
+    </record>
+    <record id="mail_template_proforma_overdue" model="mail.template">
+        <field name="name">Payment Reminder: Proforma Overdue</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="subject">Reminder Outstanding Proforma {{ object.name }}</field>
+        <field name="email_from">{{ object.company_id.email_formatted }}</field>
+        <field name="partner_to">{{ object._ft_reminder_partner().id }}</field>
+        <field name="lang">{{ object._ft_reminder_partner().lang }}</field>
+        <field name="report_template_ids" eval="[(6, 0, [ref('sale.action_report_pro_forma_invoice')])]"/>
+        <field name="auto_delete" eval="False"/>
+        <field name="body_html" type="html">
+<div style="margin: 0px; padding: 0px; font-size: 13px;">
+    <p>Hi <t t-out="object._ft_reminder_partner().name or ''">Customer</t>,</p>
+    <p>An amount of <t t-out="object._ft_reminder_amount_text()">₹0.00</t> against Proforma <t t-out="object.name or ''">S00001</t> is overdue.</p>
+    <p>Request to clear the payment at the earliest to continue uninterrupted services.</p>
+    <p>Fingertip</p>
+</div>
+        </field>
+    </record>
+    <record id="mail_template_proforma_before_due" model="mail.template">
+        <field name="name">Payment Reminder: Proforma Due Soon</field>
+        <field name="model_id" ref="sale.model_sale_order"/>
+        <field name="subject">Reminder Proforma {{ object.name }} Due on {{ object._ft_reminder_due_text() }}</field>
+        <field name="email_from">{{ object.company_id.email_formatted }}</field>
+        <field name="partner_to">{{ object._ft_reminder_partner().id }}</field>
+        <field name="lang">{{ object._ft_reminder_partner().lang }}</field>
+        <field name="report_template_ids" eval="[(6, 0, [ref('sale.action_report_pro_forma_invoice')])]"/>
+        <field name="auto_delete" eval="False"/>
+        <field name="body_html" type="html">
+<div style="margin: 0px; padding: 0px; font-size: 13px;">
+    <p>Hi <t t-out="object._ft_reminder_partner().name or ''">Customer</t>,</p>
+    <p>Gentle Reminder an amount of <t t-out="object._ft_reminder_amount_text()">₹0.00</t> against Proforma <t t-out="object.name or ''">S00001</t> will be due by <t t-out="object._ft_reminder_due_text()">01-Jan-2026</t>.</p>
+    <p>Request to clear before due date.</p>
+    <p>Fingertip</p>
+</div>
+        </field>
+    </record>
+    </data>
+</odoo>
