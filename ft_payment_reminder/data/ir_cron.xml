@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- 10:00 AM India = 04:30 UTC; the method itself skips Sundays -->
+    <record id="ir_cron_payment_reminders" model="ir.cron">
+        <field name="name">Payment Reminders: 10 AM India</field>
+        <field name="model_id" ref="model_ft_payment_reminder_mixin"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_send_payment_reminders()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="nextcall" eval="(DateTime.now().replace(hour=4, minute=30, second=0, microsecond=0) + timedelta(days=1 if DateTime.now().hour * 60 + DateTime.now().minute >= 270 else 0)).strftime('%Y-%m-%d %H:%M:%S')"/>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>
