@@ -38,18 +38,33 @@ class CrmErpCustomerApi(http.Controller):
         data, contacts = payload['company'], payload.get('contacts', [])
         source = str(payload.get('source_system') or 'crm_pms').strip()
         source_id = str(payload.get('source_company_id') or '').strip()
-        if not str(data.get('name') or '').strip() or not str(data.get('website') or '').strip() or not source_id:
+        linked_id = str(payload.get('erp_customer_id') or '').strip()
+        linked_code = str(payload.get('customer_code') or '').strip()
+        if linked_id and (not linked_id.isascii() or not linked_id.isdecimal()
+                          or len(linked_id) > 10 or not 0 < int(linked_id) <= 2147483647 or not linked_code):
+            return self._json({'success': False, 'error': 'invalid_customer_link',
+                               'message': 'A valid ERP Customer ID and Customer Code are required.'}, 400)
+        if not source_id or (not linked_id and (
+            not str(data.get('name') or '').strip() or not str(data.get('website') or '').strip()
+        )):
             return self._json({'success': False, 'error': 'missing_identity',
                                'message': 'Company name, website and source_company_id are required.'}, 400)
         P = request.env['res.partner'].sudo()
         try:
             with request.env.cr.savepoint():
-                company, match = P._find_crm_company(data, source, source_id)
+                if linked_id:
+                    company = P.with_context(active_test=False).browse(int(linked_id)).exists()
+                    if not company or not company.is_company or company.customer_code != linked_code:
+                        return self._json({'success': False, 'error': 'customer_link_mismatch',
+                                           'message': 'Saved ERP ID and Customer Code do not match.'}, 409)
+                    match = 'linked'
+                else:
+                    company, match = P._find_crm_company(data, source, source_id)
                 if match == 'ambiguous':
                     raise ValidationError('Multiple ERP companies share the exact same name and website.')
                 if match == 'missing_identity':
                     raise ValidationError('Company name and website are required.')
-                mapping = {'email': 'email', 'phone': 'phone', 'vat': 'vat', 'street': 'street',
+                mapping = {'email': 'email', 'phone': 'phone', 'mobile': 'mobile', 'vat': 'vat', 'street': 'street',
                            'street2': 'street2', 'city': 'city', 'zip': 'zip'}
                 if match == 'not_found':
                     vals = {'name': str(data['name']).strip(), 'website': str(data['website']).strip(),
@@ -63,6 +78,10 @@ class CrmErpCustomerApi(http.Controller):
                             vals['country_id'] = country.id
                     company = P.create(vals)
                     action = 'created'
+                elif match == 'linked':
+                    P._write_crm_changes(company, data, {'name': 'name', 'website': 'website', **mapping})
+                    P._apply_crm_company_location(company, data)
+                    action = 'updated'
                 else:
                     P._fill_empty(company, data, mapping)
                     action = 'updated'
@@ -70,7 +89,7 @@ class CrmErpCustomerApi(http.Controller):
                     company.customer_code = P._generate_customer_code()
                 results = []
                 for item in contacts:
-                    results.append(P._upsert_crm_contact(company, item) if isinstance(item, dict)
+                    results.append(P._upsert_crm_contact(company, item, source, source_id) if isinstance(item, dict)
                                    else {'status': 'skipped', 'reason': 'invalid_contact'})
                 # Originated in CRM: no separate ERP->CRM cron pass is needed.
                 company.write({'crm_sync_state': 'success'})
@@ -78,7 +97,8 @@ class CrmErpCustomerApi(http.Controller):
                           'customer': {'erp_customer_id': str(company.id), 'customer_code': company.customer_code,
                                        'name': company.name, 'website': company.website},
                           'contacts': results,
-                          'message': 'Customer processed. Existing non-empty ERP fields were preserved.'}
+                          'change_sync_version': 1,
+                          'message': 'Customer processed.'}
             return self._json(result, 201 if action == 'created' else 200)
         except (ValidationError, ContactMatchError) as exc:
             return self._json({'success': False, 'error': 'duplicate_exact_match', 'message': str(exc)}, 409)

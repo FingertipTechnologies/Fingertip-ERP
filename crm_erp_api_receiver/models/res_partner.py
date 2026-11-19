@@ -60,11 +60,12 @@ class ResPartner(models.Model):
     # The original ERP database did not expose res.partner.mobile. Extending the
     # standard model makes the incoming mobile number persist on that database.
     mobile = fields.Char(string='Mobile')
-    customer_code = fields.Char(string='Customer Code', copy=False, index=True, readonly=True)
+    crm_source_contact_key = fields.Char(copy=False, readonly=True, index=True)
+    customer_code = fields.Char(string='Customer Code', copy=False, index=True, readonly=True,tracking=True,)
     crm_sync_state = fields.Selection([
         ('pending', 'Pending'), ('success', 'Synchronized'),
         ('not_found', 'Not Found in CRM/PMS'), ('failed', 'Failed')
-    ], string='CRM/PMS Sync Status', default='pending', copy=False, index=True)
+    ], string='CRM/PMS Sync Status', default='pending', copy=False, index=True,tracking=True,)
 
     _sql_constraints = [
         ('erp_customer_code_unique', 'unique(customer_code)', 'Customer Code must be unique.'),
@@ -116,47 +117,111 @@ class ResPartner(models.Model):
         return vals
 
     @api.model
-    def _upsert_crm_contact(self, company, data):
-        """Match contact using the sender's available identifiers within its company."""
+    def _write_crm_changes(self, record, data, mapping):
+        """Write only explicitly edited non-blank fields."""
+        incoming_fields = data.get('changed_fields')
+        if not isinstance(incoming_fields, list):
+            return
+        vals = {mapping[key]: data[key] for key in mapping
+                if key in incoming_fields and mapping[key] in record._fields
+                and isinstance(data.get(key), str) and data[key].strip()
+                and data[key] != record[mapping[key]]}
+        if vals:
+            record.write(vals)
+
+    @api.model
+    def _apply_crm_company_location(self, company, data):
+        changes = data.get('changed_fields')
+        if not isinstance(changes, list):
+            return
+        vals = {}
+        country = company.country_id
+        if 'country' in changes and data.get('country'):
+            country = self.env['res.country'].search(
+                [('code', '=ilike', data['country'])], limit=1
+            )
+            if not country:
+                raise ValidationError(_('CRM/PMS country was not found.'))
+            vals['country_id'] = country.id
+        if ('state' in changes or 'country_id' in vals) and data.get('state'):
+            if not country:
+                country = self.env['res.country'].search(
+                    [('code', '=ilike', data.get('country') or '')], limit=1
+                )
+                if country:
+                    vals['country_id'] = country.id
+            if not country:
+                raise ValidationError(_('A matching ERP country is required for the CRM/PMS state.'))
+            states = self.env['res.country.state']
+            domain = [('country_id', '=', country.id)]
+            state = states.browse()
+            if data.get('state_code'):
+                state = states.search(domain + [('code', '=ilike', data['state_code'])], limit=2)
+            if not state:
+                state = states.search(domain + [('name', '=ilike', data['state'])], limit=2)
+            if len(state) != 1:
+                raise ValidationError(_('CRM/PMS state was not found uniquely in the ERP country.'))
+            vals['state_id'] = state.id
+        elif 'country_id' in vals and company.state_id and company.state_id.country_id != country:
+            # The old state cannot belong to the newly selected country.
+            vals['state_id'] = False
+        if vals:
+            company.write(vals)
+
+    @api.model
+    def _upsert_crm_contact(self, company, data, source=None, source_company_id=None):
+        """Resolve saved source identity, then match legacy contacts by pre-edit identity."""
         P = self.sudo().with_context(active_test=False)
         name = (data.get('name') or '').strip()
         if not name:
             return {'status': 'skipped', 'reason': 'contact_name_missing'}
-        email = norm_email(data.get('email'))
-        mobile = norm_mobile(data.get('mobile'))
+        source_contact_id = str(data.get('source_contact_id') or '').strip()
+        source_key = ('%s:%s:%s' % (source, source_company_id, source_contact_id)
+                      if source and source_company_id and source_contact_id else False)
         siblings = P.search([('parent_id', '=', company.id), ('is_company', '=', False),
                              ('type', '=', 'contact')])
-        incoming_key = contact_identity_key(name, email, mobile)
+        matches = siblings.filtered(lambda p: p.crm_source_contact_key == source_key) if source_key else P.browse()
+        eligible = siblings.filtered(lambda p: not p.crm_source_contact_key) if source_key else siblings
+        previous = data.get('previous_identity')
 
-        def same(contact):
-            # Never partially match an email+mobile pair: different populated
-            # values represent different contacts, even if one matches.
-            if incoming_key[0] == 'email_mobile':
-                return (norm_email(contact.email) == email
-                        and norm_mobile(contact.mobile) == mobile)
-            if incoming_key[0] == 'email':
-                return norm_email(contact.email) == email
-            if incoming_key[0] == 'mobile':
-                return norm_mobile(contact.mobile) == mobile
-            return norm_name(contact.name) == incoming_key[1]
+        def find(identity):
+            key = contact_identity_key(identity.get('name'), identity.get('email'), identity.get('mobile'))
+            if key[0] == 'email_mobile':
+                return eligible.filtered(lambda p: norm_email(p.email) == key[1]
+                                         and norm_mobile(p.mobile) == key[2])
+            if key[0] == 'email':
+                return eligible.filtered(lambda p: norm_email(p.email) == key[1])
+            if key[0] == 'mobile':
+                return eligible.filtered(lambda p: norm_mobile(p.mobile) == key[1])
+            return eligible.filtered(lambda p: norm_name(p.name) == key[1])
 
-        matches = siblings.filtered(same)
+        if not matches and isinstance(previous, dict):
+            matches = find(previous)
+        if not matches:
+            matches = find(data)
         if len(matches) > 1:
             raise ContactMatchError(_('Multiple contacts match under company %s: %s') % (company.name, name))
+        mapping = {'name': 'name', 'email': 'email', 'phone': 'phone',
+                   'mobile': 'mobile', 'job_title': 'function'}
         if matches:
             contact = matches[0]
-            self._fill_empty(contact, data, {'name': 'name', 'email': 'email', 'phone': 'phone',
-                                             'mobile': 'mobile', 'job_title': 'function'})
-            return {'status': 'updated', 'erp_contact_id': contact.id}
-        # No exact match for the available identifiers: create a distinct
-        # contact under this company. Partial email/mobile overlaps are allowed.
-        vals = {'name': name, 'parent_id': company.id, 'type': 'contact', 'is_company': False}
-        for incoming, field_name in {'email': 'email', 'phone': 'phone', 'mobile': 'mobile',
-                                     'job_title': 'function'}.items():
-            if data.get(incoming) and field_name in P._fields:
-                vals[field_name] = data[incoming]
-        contact = P.create(vals)
-        return {'status': 'created', 'erp_contact_id': contact.id}
+            if data.get('changed_fields'):
+                self._write_crm_changes(contact, data, mapping)
+            else:
+                self._fill_empty(contact, data, mapping)
+            if source_key and not contact.crm_source_contact_key:
+                contact.write({'crm_source_contact_key': source_key})
+            status = 'updated'
+        else:
+            vals = {'name': name, 'parent_id': company.id, 'type': 'contact', 'is_company': False}
+            if source_key:
+                vals['crm_source_contact_key'] = source_key
+            for incoming, field_name in mapping.items():
+                if data.get(incoming) and field_name in P._fields:
+                    vals[field_name] = data[incoming]
+            contact = P.create(vals)
+            status = 'created'
+        return {'status': status, 'erp_contact_id': contact.id, 'source_contact_id': source_contact_id}
 
     def _prepare_crm_code_payload(self):
         """Only the exact company identity and ERP-owned code are sent.
@@ -258,3 +323,44 @@ class ResPartner(models.Model):
 
             finally:
                 config.set_param(cursor_key, str(company.id))
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        partners = super().create(vals_list)
+        companies = partners.filtered('is_company')
+
+        if not companies:
+            return partners
+
+        existing_companies = self.sudo().with_context(active_test=False).search([
+            ('is_company', '=', True),
+            ('website', '!=', False),
+            ('id', 'not in', companies.ids),
+        ])
+
+        existing_keys = {
+            (norm_name(company.name), norm_site(company.website))
+            for company in existing_companies
+        }
+
+        for company in companies:
+            name = norm_name(company.name)
+            website = norm_site(company.website)
+
+            if not name:
+                raise ValidationError(_("Company Name is required."))
+
+            if not website:
+                raise ValidationError(_("Website is required for a company."))
+
+            key = (name, website)
+            if key in existing_keys:
+                raise ValidationError(_(
+                    "Duplicate company. A company with the same name and website "
+                    "already exists in ERP."
+                ))
+
+            # Also catch duplicates within the same import or batch.
+            existing_keys.add(key)
+
+        return partners

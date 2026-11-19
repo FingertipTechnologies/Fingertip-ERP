@@ -1,11 +1,11 @@
 {
     "name": "CRM/PMS Customer API Receiver",
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "category": "Accounting/CRM",
     "summary": "CRM customer upsert and ERP-owned historical code matching",
     "author": "Custom Development",
     "license": "LGPL-3",
-    "depends": ["base", "contacts"],
+    "depends": ["base",'mail', "contacts"],
     "external_dependencies": {"python": ["requests"]},
     "data": ["data/ir_sequence.xml", "data/cron.xml",
              "views/res_config_settings_views.xml",
