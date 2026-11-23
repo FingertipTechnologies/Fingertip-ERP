@@ -344,7 +344,8 @@ result_name = inputs['REIMBURSEMENT'].name
         <field name="name">Net Salary</field>
         <field name="sequence">200</field>
         <field name="code">NET</field>
-        <field name="appears_on_employee_cost_dashboard" eval="True"/>
+        <!-- Take-home pay, not a cost: the pay-run "employer cost" comes from CTC_TOTAL. -->
+        <field name="appears_on_employee_cost_dashboard" eval="False"/>
         <field name="condition_select">none</field>
         <field name="amount_select">code</field>
         <field name="amount_python_compute">
@@ -434,6 +435,8 @@ result = categories['BASIC'] + categories['ALW'] + categories['DED'] + categorie
         <field name="name">Calculated Employer CTC</field>
         <field name="code">CTC_TOTAL</field>
         <field name="sequence">210</field>
+        <!-- Cost to company: gross + PF/ESI employer + gratuity. Feeds the pay-run "employer cost". -->
+        <field name="appears_on_employee_cost_dashboard" eval="True"/>
         <field name="category_id" ref="greythr_info_category"/>
         <field name="struct_id" ref="greythr_structure"/>
         <field name="condition_select">none</field>

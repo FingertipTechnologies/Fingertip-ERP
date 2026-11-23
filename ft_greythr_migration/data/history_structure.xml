@@ -260,4 +260,19 @@
         <field name="amount_select">code</field>
         <field name="amount_python_compute">result = categories['BASIC'] + categories['ALW'] + categories['DED'] + categories['FT_NTA']</field>
     </record>
+    <!-- Cost to company for a greytHR month, so pay runs show their employer cost like
+         Odoo-computed months. greytHR's statement has no employer columns: employer PF is
+         the same as the employee PF deducted, employer ESI is 3.25% of gross (rounded up,
+         as greytHR does) where greytHR deducted ESI. Gratuity is not in the statement. -->
+    <record id="greythr_history_rule_ctc_total" model="hr.salary.rule">
+        <field name="name">Calculated Employer CTC</field>
+        <field name="code">CTC_TOTAL</field>
+        <field name="sequence">210</field>
+        <field name="category_id" ref="greythr_info_category"/>
+        <field name="struct_id" ref="greythr_history_structure"/>
+        <field name="appears_on_employee_cost_dashboard" eval="True"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = payslip._greythr_history_employer_ctc(categories['GROSS'])</field>
+    </record>
 </odoo>
