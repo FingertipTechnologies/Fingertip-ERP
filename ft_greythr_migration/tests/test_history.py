@@ -62,3 +62,29 @@ class TestGreythrHistory(TransactionCase):
         data = slip._ft_report_values()
         self.assertEqual((data['days_in_month'], data['effective_days'], data['lop']), (30, 28, 2))
         self.assertEqual({row['name']: row['master'] for row in data['earnings']}['BASIC'], 10000)
+
+    def test_employer_cost_is_cost_to_company(self):
+        # No ESI: gross 1,53,784 + employer PF 1,800. Net pay is not a cost.
+        slip = self._slip(HIST_DAYS=30, HIST_EFFECTIVE=30, HIST_BASIC=76892, HIST_HRA=30757,
+                          HIST_SPL=37735, HIST_EDU=1200, HIST_MEAL=2200, HIST_LTA=5000,
+                          HIST_NTA=20000, HIST_PF=1800, HIST_PT=200, HIST_TDS=13354)
+        self.assertEqual({l.code: l.total for l in slip.line_ids}['CTC_TOTAL'], 155584)
+        self.assertEqual(slip.employer_cost, 155584)
+
+    def test_employer_esi_is_3_25_percent_rounded_up(self):
+        # Basavaraju-like: gross 18,278, employee ESI 138 -> employer 3.25% = 594.04 -> 595.
+        slip = self._slip(HIST_DAYS=30, HIST_EFFECTIVE=30, HIST_BASIC=9139, HIST_HRA=3656,
+                          HIST_SPL=5483, HIST_PF=1800, HIST_ESI=138)
+        self.assertEqual({l.code: l.total for l in slip.line_ids}['CTC_TOTAL'], 18278 + 1800 + 595)
+
+    def test_backfill_confirmed_payslip_without_cost_line(self):
+        """Payslips validated before the rule existed get the line and their employer cost."""
+        slip = self._slip(HIST_DAYS=30, HIST_EFFECTIVE=30, HIST_BASIC=10000, HIST_PF=1200)
+        slip.action_payslip_done()
+        slip.line_ids.filtered(lambda l: l.code == 'CTC_TOTAL').unlink()
+        slip.employer_cost = 0
+        self.assertEqual(slip._ft_backfill_employer_cost(), 1)
+        self.assertEqual({l.code: l.total for l in slip.line_ids}['CTC_TOTAL'], 11200)
+        self.assertEqual(slip.employer_cost, 11200)
+        self.assertEqual(slip._ft_backfill_employer_cost(), 0)   # idempotent
+        self.assertEqual(slip.state, 'validated')

@@ -95,12 +95,21 @@
             <field name="greythr_applied_ctc_id" groups="hr_payroll.group_hr_payroll_user"/>
           </group>
           <field name="greythr_ctc_ids" groups="hr_payroll.group_hr_payroll_user">
+            <!-- One row per salary revision: the component columns show what changed
+                 (e.g. HRA up, Special Allowance down) even when gross and CTC stay the same. -->
             <list>
               <field name="effective_date"/>
-              <field name="employee_status"/>
-              <field name="annual_ctc"/>
-              <field name="monthly_ctc"/>
-              <field name="monthly_gross"/>
+              <field name="full_basic" string="Basic"/>
+              <field name="full_hra" string="HRA"/>
+              <field name="full_special_allowance" string="Special Allowance"/>
+              <field name="monthly_gross" string="Monthly Gross"/>
+              <field name="full_gratuity" string="Gratuity" optional="show"/>
+              <field name="annual_variable_pay" string="Variable Pay (Yearly)" optional="show"/>
+              <field name="annual_ctc" string="Annual CTC" optional="show"/>
+              <field name="monthly_ctc" string="Monthly CTC" optional="hide"/>
+              <field name="employee_status" optional="hide"/>
+              <field name="remarks" string="Revision Note" optional="show"/>
+              <field name="currency_id" column_invisible="1"/>
             </list>
             <form string="greytHR CTC Source">
               <header>
