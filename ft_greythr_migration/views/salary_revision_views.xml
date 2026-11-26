@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Salary is edited on the Payroll tab; each save keeps the salary revision
+         of that version in step (models/salary_revision.py). -->
+    <record id="employee_form_salary_revision_payroll_tab" model="ir.ui.view">
+        <field name="name">hr.employee.form.salary.revision.payroll.tab</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="l10n_in_hr_payroll.hr_employee_view_form_in_inherit"/>
+        <field name="arch" type="xml">
+            <!-- Amounts stay as typed when the wage changes, so a percentage beside them would be stale. -->
+            <field name="l10n_in_basic_percentage" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </field>
+            <field name="l10n_in_hra_percentage" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </field>
+            <field name="l10n_in_standard_allowance_percentage" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </field>
+            <field name="l10n_in_performance_bonus_percentage" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </field>
+            <field name="l10n_in_leave_travel_percentage" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </field>
+            <!-- Balance of the wage. -->
+            <field name="l10n_in_fixed_allowance" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </field>
+            <!-- 4.81% of Basic when ticked. -->
+            <label for="l10n_in_gratuity" position="before">
+                <field name="ft_gratuity_eligible"/>
+            </label>
+            <field name="l10n_in_gratuity" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </field>
+            <field name="l10n_in_gratuity_percentage" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </field>
+            <label for="l10n_in_pf_employee_amount" position="before">
+                <field name="greythr_pf_eligible" string="PF Eligible"/>
+            </label>
+        </field>
+    </record>
+
+    <!-- View only: revisions come from the Payroll tab. -->
+    <record id="employee_form_salary_revision_list_readonly" model="ir.ui.view">
+        <field name="name">hr.employee.form.salary.revision.list.readonly</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="ft_greythr_migration.employee_form_greythr"/>
+        <field name="arch" type="xml">
+            <field name="greythr_ctc_ids" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </field>
+        </field>
+    </record>
+</odoo>

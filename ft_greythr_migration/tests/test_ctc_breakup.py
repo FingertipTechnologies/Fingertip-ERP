@@ -13,7 +13,8 @@ class TestCtcBreakup(TransactionCase):
             'currency_id': cls.env.ref('base.INR').id,
         })
         cls.env = cls.env(context=dict(cls.env.context, allowed_company_ids=[cls.company.id],
-            tracking_disable=True, mail_create_nosubscribe=True, mail_create_nolog=True))
+            tracking_disable=True, mail_create_nosubscribe=True, mail_create_nolog=True,
+            ft_salary_sync=True))  # version built the standard way, no Payroll tab revision
         cls.employee = cls.env['hr.employee'].create({
             'name': 'CTC Sheet Employee', 'company_id': cls.company.id,
             'date_version': '2026-04-01', 'contract_date_start': '2026-04-01',

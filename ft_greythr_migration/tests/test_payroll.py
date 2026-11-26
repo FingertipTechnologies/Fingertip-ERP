@@ -432,7 +432,8 @@ class TestGreythrPayroll(TransactionCase):
 
     def test_bulk_apply_and_review_from_employee_list(self):
         def new_employee(name, gross):
-            employee = self.env['hr.employee'].create({
+            # Imported the old way: the CTC row comes from the import, not the Payroll tab.
+            employee = self.env['hr.employee'].with_context(ft_salary_sync=True).create({
                 'name': name, 'company_id': self.company.id,
                 'date_version': '2026-06-01', 'contract_date_start': '2026-06-01', 'wage': 1000})
             self.env['ft.greythr.ctc'].create({

@@ -74,7 +74,8 @@ class GreythrCTC(models.Model):
             raise UserError(self.env._('PF treatment conflicts with source eligibility.'))
         if self.payroll_pf_mode == 'capped' and self.pf_base_limit <= 0:
             raise UserError(self.env._('Provide the PF base limit for capped PF.'))
-        Employee = self.employee_id.with_context(tracking_disable=True)
+        # The CTC writes the version here; the Payroll tab sync must not write it back.
+        Employee = self.employee_id.with_context(tracking_disable=True, ft_salary_sync=True)
         version = Employee.version_ids.filtered(lambda v: v.date_version == self.effective_date)
         if len(version) > 1:
             raise UserError(self.env._('Resolve duplicate employment versions first.'))
@@ -93,6 +94,7 @@ class GreythrCTC(models.Model):
             # Target only. It is never paid monthly: HR types the payout on the
             # payslip (Variable Pay tab), up to this total per financial year.
             'ft_annual_variable_pay': self.annual_variable_pay,
+            'ft_gratuity_eligible': bool(self.full_gratuity),
             'l10n_in_standard_allowance': 0,
             'l10n_in_performance_bonus': 0,
             'l10n_in_internet_subscription': 0,
