@@ -6,3 +6,4 @@ from . import test_leave_work_entries
 from . import test_history
 from . import test_salary_hold
 from . import test_ctc_breakup_export
+from . import test_yearly_salary_detail

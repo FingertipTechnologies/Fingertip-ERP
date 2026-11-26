@@ -18,5 +18,6 @@
           'views/res_bank_views.xml',
           'views/report_payslip.xml',
           'views/report_payslip_reference.xml',
-          'views/salary_hold_views.xml'],
+          'views/salary_hold_views.xml',
+          'views/yearly_salary_detail_views.xml'],
  'installable': True}
