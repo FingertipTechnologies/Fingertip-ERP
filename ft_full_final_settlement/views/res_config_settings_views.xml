@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_fnf" model="ir.ui.view">
+        <field name="name">res.config.settings.form.fnf</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="hr_payroll.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <block id="hr_payroll_settings" position="after">
+                <block title="Full &amp; Final Settlement" id="ft_fnf_settings">
+                    <setting string="Leave Encashment" id="ft_fnf_encashment"
+                             help="Unused balance of these leave types is paid out at exit.">
+                        <div class="content-group">
+                            <div class="row mt8">
+                                <label for="ft_fnf_encash_leave_type_ids" string="Leave types" class="col-lg-4 o_light_label"/>
+                                <field name="ft_fnf_encash_leave_type_ids" widget="many2many_tags"/>
+                            </div>
+                            <div class="row">
+                                <label for="ft_fnf_encash_basis" string="One day =" class="col-lg-4 o_light_label"/>
+                                <div class="col"><field name="ft_fnf_encash_basis" class="w-auto"/> ÷
+                                    <field name="ft_fnf_encash_divisor" class="oe_inline" style="width: 4rem"/></div>
+                            </div>
+                        </div>
+                    </setting>
+                    <setting string="Notice Period" id="ft_fnf_notice"
+                             help="Days a resigning employee must serve; days short are recovered.">
+                        <div class="content-group">
+                            <div class="row mt8">
+                                <label for="ft_fnf_notice_days" string="Notice" class="col-lg-4 o_light_label"/>
+                                <div class="col"><field name="ft_fnf_notice_days" class="oe_inline" style="width: 4rem"/> days</div>
+                            </div>
+                            <div class="row">
+                                <label for="ft_fnf_notice_basis" string="One day =" class="col-lg-4 o_light_label"/>
+                                <div class="col"><field name="ft_fnf_notice_basis" class="w-auto"/> ÷
+                                    <field name="ft_fnf_notice_divisor" class="oe_inline" style="width: 4rem"/></div>
+                            </div>
+                        </div>
+                    </setting>
+                    <setting string="Gratuity at Exit" id="ft_fnf_gratuity"
+                             help="Days per year ÷ days per month × last Basic × years of service.">
+                        <div class="content-group">
+                            <div class="row mt8">
+                                <label for="ft_fnf_gratuity_rule" string="Who gets it" class="col-lg-4 o_light_label"/>
+                                <field name="ft_fnf_gratuity_rule"/>
+                            </div>
+                            <div class="row">
+                                <label for="ft_fnf_gratuity_min_years" string="Minimum service" class="col-lg-4 o_light_label"/>
+                                <div class="col"><field name="ft_fnf_gratuity_min_years" class="oe_inline" style="width: 4rem"/> years</div>
+                            </div>
+                            <div class="row">
+                                <label for="ft_fnf_gratuity_days" string="Formula" class="col-lg-4 o_light_label"/>
+                                <div class="col"><field name="ft_fnf_gratuity_days" class="oe_inline" style="width: 3rem"/> ÷
+                                    <field name="ft_fnf_gratuity_month_days" class="oe_inline" style="width: 3rem"/> × Basic × years</div>
+                            </div>
+                            <div class="row">
+                                <label for="ft_fnf_gratuity_part_year_months" string="Part year counts from" class="col-lg-4 o_light_label"/>
+                                <div class="col"><field name="ft_fnf_gratuity_part_year_months" class="oe_inline" style="width: 3rem"/> months</div>
+                            </div>
+                            <div class="row">
+                                <label for="ft_fnf_gratuity_cap" string="Cap (₹)" class="col-lg-4 o_light_label"/>
+                                <field name="ft_fnf_gratuity_cap" class="oe_inline" style="width: 8rem"/>
+                            </div>
+                        </div>
+                    </setting>
+                </block>
+            </block>
+        </field>
+    </record>
+</odoo>

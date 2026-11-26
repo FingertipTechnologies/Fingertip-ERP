@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_ft_fnf_settlement_user,ft.fnf.settlement user,model_ft_fnf_settlement,hr_payroll.group_hr_payroll_user,1,1,1,0
+access_ft_fnf_settlement_manager,ft.fnf.settlement manager,model_ft_fnf_settlement,hr_payroll.group_hr_payroll_manager,1,1,1,1
