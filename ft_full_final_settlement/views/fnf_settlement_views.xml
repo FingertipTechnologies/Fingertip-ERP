@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_fnf_settlement_form" model="ir.ui.view">
+        <field name="name">ft.fnf.settlement.form</field>
+        <field name="model">ft.fnf.settlement</field>
+        <field name="arch" type="xml">
+            <form string="Full &amp; Final Settlement">
+                <header>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary" invisible="state != 'draft'"
+                            groups="hr_payroll.group_hr_payroll_manager"
+                            confirm="Approve this settlement? Its payslip will be created."/>
+                    <button name="action_refresh" type="object" string="Recalculate" invisible="state != 'draft'"/>
+                    <button name="action_print_statement" type="object" string="Print Statement" invisible="state == 'cancel'"/>
+                    <button name="action_reset_to_draft" type="object" string="Reset to Draft" invisible="state != 'approved'"
+                            groups="hr_payroll.group_hr_payroll_manager"/>
+                    <button name="action_cancel" type="object" string="Cancel" invisible="state not in ('draft', 'approved')"
+                            groups="hr_payroll.group_hr_payroll_manager"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,approved,paid"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_open_payslip" type="object" class="oe_stat_button" icon="fa-file-text-o"
+                                invisible="not payslip_id">
+                            <div class="o_stat_info"><span class="o_stat_text">Settlement Payslip</span>
+                                <field name="payslip_state" class="o_stat_value"/></div>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="employee_id" readonly="state != 'draft'"/>
+                            <field name="joining_date" readonly="state != 'draft'"/>
+                            <field name="resignation_date" readonly="state != 'draft'"/>
+                            <field name="last_working_date" readonly="state != 'draft'"/>
+                            <field name="service_text"/>
+                        </group>
+                        <group>
+                            <field name="version_id" options="{'no_open': True}"/>
+                            <field name="monthly_gross"/>
+                            <field name="monthly_basic"/>
+                            <field name="final_payslip_id"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Due to the Employee">
+                            <label for="encash_days"/>
+                            <div class="o_row">
+                                <field name="encash_days" readonly="state != 'draft'" class="o_hr_narrow_field"/>
+                                <span>days ×</span><field name="encash_rate" class="o_hr_narrow_field"/>
+                            </div>
+                            <field name="encash_amount"/>
+                            <field name="gratuity_amount" readonly="state != 'draft'"/>
+                            <field name="gratuity_note" nolabel="1" colspan="2" class="text-muted"/>
+                            <field name="gratuity_rule" invisible="1"/>
+                            <field name="gratuity_confirmed" invisible="gratuity_rule != 'manual'" readonly="state != 'draft'"/>
+                            <field name="variable_pay_due" readonly="state != 'draft'"/>
+                            <field name="other_dues" readonly="state != 'draft'"/>
+                            <field name="other_dues_note" invisible="not other_dues" readonly="state != 'draft'"/>
+                            <field name="total_dues" class="oe_subtotal_footer_separator"/>
+                        </group>
+                        <group string="Recovered from the Employee">
+                            <field name="notice_days"/>
+                            <field name="notice_served"/>
+                            <label for="notice_shortfall"/>
+                            <div class="o_row">
+                                <field name="notice_shortfall" readonly="state != 'draft'" class="o_hr_narrow_field"/>
+                                <span>days ×</span><field name="notice_rate" class="o_hr_narrow_field"/>
+                            </div>
+                            <field name="notice_recovery"/>
+                            <field name="advance_recovery"/>
+                            <field name="other_recoveries" readonly="state != 'draft'"/>
+                            <field name="other_recoveries_note" invisible="not other_recoveries" readonly="state != 'draft'"/>
+                            <field name="tds_amount" readonly="state != 'draft'"/>
+                            <field name="total_recoveries" class="oe_subtotal_footer_separator"/>
+                        </group>
+                    </group>
+                    <group class="oe_subtotal_footer">
+                        <field name="net_amount" class="oe_subtotal_footer_separator"/>
+                    </group>
+                    <field name="notes" placeholder="Notes for the statement..." readonly="state not in ('draft', 'approved')"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fnf_settlement_list" model="ir.ui.view">
+        <field name="name">ft.fnf.settlement.list</field>
+        <field name="model">ft.fnf.settlement</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="last_working_date"/>
+                <field name="total_dues" sum="Total"/>
+                <field name="total_recoveries" sum="Total"/>
+                <field name="net_amount" sum="Total"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="state" widget="badge" decoration-info="state == 'draft'" decoration-warning="state == 'approved'"
+                       decoration-success="state == 'paid'"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fnf_settlement_search" model="ir.ui.view">
+        <field name="name">ft.fnf.settlement.search</field>
+        <field name="model">ft.fnf.settlement</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="employee_id"/>
+                <filter name="draft" string="Draft" domain="[('state', '=', 'draft')]"/>
+                <filter name="approved" string="Approved" domain="[('state', '=', 'approved')]"/>
+                <filter name="paid" string="Paid" domain="[('state', '=', 'paid')]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_fnf_settlement" model="ir.actions.act_window">
+        <field name="name">Full &amp; Final Settlements</field>
+        <field name="res_model">ft.fnf.settlement</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No settlement yet</p>
+            <p>Register the departure of an employee, then open Full &amp; Final Settlement from the employee.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_fnf_settlement" name="Full &amp; Final Settlements" action="action_fnf_settlement"
+              parent="hr_payroll.menu_hr_payroll_payslips" sequence="90"
+              groups="hr_payroll.group_hr_payroll_user"/>
+</odoo>

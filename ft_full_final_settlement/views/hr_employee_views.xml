@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_employee_form_fnf" model="ir.ui.view">
+        <field name="name">hr.employee.form.fnf</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="ft_greythr_migration.view_employee_form_exit_clearance"/>
+        <field name="arch" type="xml">
+            <field name="departure_date" position="before">
+                <field name="ft_resignation_date" groups="hr.group_hr_user"/>
+            </field>
+            <xpath expr="//button[@name='action_ft_exit_clearance']/.." position="after">
+                <div colspan="2" groups="hr_payroll.group_hr_payroll_user">
+                    <button name="action_ft_fnf_settlement" type="object" string="Full &amp; Final Settlement"
+                            class="btn-secondary" icon="fa-calculator" invisible="not departure_date"/>
+                </div>
+            </xpath>
+        </field>
+    </record>
+</odoo>

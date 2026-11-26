@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Paid once, when a leaver's settlement is approved. Amounts come in as
+         payslip inputs from the settlement; nothing is worked out from days. -->
+    <record id="fnf_structure" model="hr.payroll.structure">
+        <field name="name">Full &amp; Final Settlement</field>
+        <field name="code">FT_FNF</field>
+        <field name="country_id" ref="base.in"/>
+        <field name="type_id" ref="ft_greythr_migration.greythr_structure_type"/>
+        <field name="use_worked_day_lines" eval="False"/>
+        <field name="rule_ids" eval="[]"/>
+        <field name="report_id" ref="l10n_in_hr_payroll.action_report_payslip_in"/>
+    </record>
+    <record id="input_fnf_leave_enc" model="hr.payslip.input.type">
+        <field name="name">Leave Encashment</field>
+        <field name="code">FNF_LEAVE_ENC</field>
+        <field name="struct_ids" eval="[(4, ref('fnf_structure'))]"/>
+    </record>
+    <record id="input_fnf_gratuity" model="hr.payslip.input.type">
+        <field name="name">Gratuity</field>
+        <field name="code">FNF_GRATUITY</field>
+        <field name="struct_ids" eval="[(4, ref('fnf_structure'))]"/>
+    </record>
+    <record id="input_fnf_var_pay" model="hr.payslip.input.type">
+        <field name="name">Variable Pay / Bonus Due</field>
+        <field name="code">FNF_VAR_PAY</field>
+        <field name="struct_ids" eval="[(4, ref('fnf_structure'))]"/>
+    </record>
+    <record id="input_fnf_other_due" model="hr.payslip.input.type">
+        <field name="name">Other Dues</field>
+        <field name="code">FNF_OTHER_DUE</field>
+        <field name="struct_ids" eval="[(4, ref('fnf_structure'))]"/>
+    </record>
+    <record id="input_fnf_notice" model="hr.payslip.input.type">
+        <field name="name">Notice Period Recovery</field>
+        <field name="code">FNF_NOTICE</field>
+        <field name="struct_ids" eval="[(4, ref('fnf_structure'))]"/>
+    </record>
+    <record id="input_fnf_other_rec" model="hr.payslip.input.type">
+        <field name="name">Other Recoveries</field>
+        <field name="code">FNF_OTHER_REC</field>
+        <field name="struct_ids" eval="[(4, ref('fnf_structure'))]"/>
+    </record>
+    <record id="input_fnf_tds" model="hr.payslip.input.type">
+        <field name="name">Tax Deducted at Source</field>
+        <field name="code">FNF_TDS</field>
+        <field name="struct_ids" eval="[(4, ref('fnf_structure'))]"/>
+    </record>
+    <record id="rule_fnf_leave_enc" model="hr.salary.rule">
+        <field name="name">Leave Encashment</field>
+        <field name="code">FNF_LEAVE_ENC</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="sequence" eval="10"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'FNF_LEAVE_ENC' in inputs and inputs['FNF_LEAVE_ENC'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs['FNF_LEAVE_ENC'].amount</field>
+        <field name="struct_id" ref="fnf_structure"/>
+    </record>
+    <record id="rule_fnf_gratuity" model="hr.salary.rule">
+        <field name="name">Gratuity</field>
+        <field name="code">FNF_GRATUITY</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="sequence" eval="20"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'FNF_GRATUITY' in inputs and inputs['FNF_GRATUITY'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs['FNF_GRATUITY'].amount</field>
+        <field name="struct_id" ref="fnf_structure"/>
+    </record>
+    <record id="rule_fnf_var_pay" model="hr.salary.rule">
+        <field name="name">Variable Pay / Bonus Due</field>
+        <field name="code">FNF_VAR_PAY</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="sequence" eval="30"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'FNF_VAR_PAY' in inputs and inputs['FNF_VAR_PAY'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs['FNF_VAR_PAY'].amount</field>
+        <field name="struct_id" ref="fnf_structure"/>
+    </record>
+    <record id="rule_fnf_other_due" model="hr.salary.rule">
+        <field name="name">Other Dues</field>
+        <field name="code">FNF_OTHER_DUE</field>
+        <field name="category_id" ref="hr_payroll.ALW"/>
+        <field name="sequence" eval="40"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'FNF_OTHER_DUE' in inputs and inputs['FNF_OTHER_DUE'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = inputs['FNF_OTHER_DUE'].amount</field>
+        <field name="struct_id" ref="fnf_structure"/>
+    </record>
+    <record id="rule_fnf_notice" model="hr.salary.rule">
+        <field name="name">Notice Period Recovery</field>
+        <field name="code">FNF_NOTICE</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="sequence" eval="150"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'FNF_NOTICE' in inputs and inputs['FNF_NOTICE'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -inputs['FNF_NOTICE'].amount</field>
+        <field name="struct_id" ref="fnf_structure"/>
+    </record>
+    <record id="rule_fnf_other_rec" model="hr.salary.rule">
+        <field name="name">Other Recoveries</field>
+        <field name="code">FNF_OTHER_REC</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="sequence" eval="160"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'FNF_OTHER_REC' in inputs and inputs['FNF_OTHER_REC'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -inputs['FNF_OTHER_REC'].amount</field>
+        <field name="struct_id" ref="fnf_structure"/>
+    </record>
+    <record id="rule_fnf_tds" model="hr.salary.rule">
+        <field name="name">Tax Deducted at Source</field>
+        <field name="code">FNF_TDS</field>
+        <field name="category_id" ref="hr_payroll.DED"/>
+        <field name="sequence" eval="170"/>
+        <field name="condition_select">python</field>
+        <field name="condition_python">result = 'FNF_TDS' in inputs and inputs['FNF_TDS'].amount</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = -inputs['FNF_TDS'].amount</field>
+        <field name="struct_id" ref="fnf_structure"/>
+    </record>
+    <record id="rule_fnf_gross" model="hr.salary.rule">
+        <field name="name">Total Dues</field>
+        <field name="code">GROSS</field>
+        <field name="category_id" ref="hr_payroll.GROSS"/>
+        <field name="sequence" eval="100"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = categories['ALW']</field>
+        <field name="struct_id" ref="fnf_structure"/>
+    </record>
+    <record id="rule_fnf_net" model="hr.salary.rule">
+        <field name="name">Net Settlement</field>
+        <field name="code">NET</field>
+        <field name="category_id" ref="hr_payroll.NET"/>
+        <field name="sequence" eval="200"/>
+        <field name="condition_select">none</field>
+        <field name="amount_select">code</field>
+        <field name="amount_python_compute">result = categories['GROSS'] + categories['DED']</field>
+        <field name="struct_id" ref="fnf_structure"/>
+    </record>
+</odoo>

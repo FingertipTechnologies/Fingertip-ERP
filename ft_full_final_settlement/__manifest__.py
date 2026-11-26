@@ -1,0 +1,20 @@
+{
+    'name': 'Fingertip Full & Final Settlement',
+    'version': '19.0.1.0.0',
+    'category': 'Human Resources/Payroll',
+    'summary': "Leaver's full and final settlement, paid through its own payslip",
+    'author': 'Fingertip',
+    'license': 'LGPL-3',
+    'depends': ['ft_greythr_migration', 'ftp_employee_salary_advance', 'hr_holidays'],
+    'data': [
+        'security/ir.model.access.csv',
+        'data/sequence.xml',
+        'data/payroll_structure.xml',
+        'views/res_config_settings_views.xml',
+        'views/fnf_settlement_views.xml',
+        'views/hr_employee_views.xml',
+        'report/fnf_statement.xml',
+    ],
+    'post_init_hook': '_ft_fnf_post_init',
+    'installable': True,
+}
