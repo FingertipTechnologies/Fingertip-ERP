@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_yearly_salary_detail_date_range" model="ir.ui.view">
+        <field name="name">yearly.salary.detail.form.date.range</field>
+        <field name="model">yearly.salary.detail</field>
+        <field name="inherit_id" ref="l10n_in_hr_payroll.view_yearly_salary_detail"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form/span[hasclass('o_form_label')]" position="replace">
+                <span class="o_form_label">This wizard will print for employees with paid payslips between the selected dates.</span>
+            </xpath>
+            <field name="year" position="replace">
+                <field name="year" invisible="1"/>
+                <field name="ft_date_from"/>
+                <field name="ft_date_to"/>
+            </field>
+            <xpath expr="//footer/button[@special='cancel']" position="before">
+                <button name="action_ft_print_excel" string="Print Excel" type="object" class="btn-primary disabled" invisible="employee_ids"/>
+                <button name="action_ft_print_excel" string="Print Excel" type="object" class="btn-primary" invisible="not employee_ids"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

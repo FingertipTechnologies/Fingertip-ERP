@@ -1,3 +1,4 @@
+from freezegun import freeze_time
 from lxml import etree
 
 from odoo import Command
@@ -108,14 +109,38 @@ class TestGreythrPayroll(TransactionCase):
         self.assertAlmostEqual(slip.line_ids.filtered(lambda l: l.code == 'GROSS').total, 30000)
 
     def test_employee_pf_matches_master_pf_basic(self):
-        # Basic below the cap: the employee form must show the 1,800 the payslip deducts.
+        # Before the 25,000 gross ceiling (June 2026) the payslip deducts 12% of basic up to
+        # 15,000; the contract, in force today, shows the PF a payslip deducts now.
         self.ctc.write({'full_basic': 10000, 'full_special_allowance': 12499.5})
-        self.ctc.action_apply_to_payroll()
+        with freeze_time('2026-08-15'):
+            self.ctc.action_apply_to_payroll()
         version = self.employee.version_id
         self.assertEqual(version.l10n_in_pf_employee_amount, 1800)
         self.assertEqual(version.l10n_in_pf_employer_amount, 1800)
         lines = {l.code: l.total for l in self._slip().line_ids}
         self.assertEqual(lines['PF'], -1800)
+
+    def test_contract_pf_follows_the_gross_ceiling(self):
+        # Gross 30,000 from September 2026: the contract shows the 3,000 the payslip
+        # deducts (12% of 25,000), not 1,800 from the old 15,000 basic cap.
+        with freeze_time('2026-11-25'):
+            self.ctc.action_apply_to_payroll()
+        version = self.employee.version_id
+        self.assertEqual(version.l10n_in_pf_employee_amount, 3000)
+        self.assertEqual(version.l10n_in_pf_employer_amount, 3000)
+        nov = {l.code: l.total for l in self._slip(1, '2026-11-01', '2026-11-30').line_ids}
+        self.assertEqual(nov['PF'], -version.l10n_in_pf_employee_amount)
+
+    def test_contract_pf_below_the_gross_ceiling(self):
+        # Basavaraju: gross 18,278 -> 12% = 2,193 on the contract and on the payslip.
+        self.ctc.write({'full_basic': 9139, 'full_hra': 3656, 'full_special_allowance': 5483,
+                        'full_meal_allowance': 0, 'full_leave_travel_allowance': 0,
+                        'full_gratuity': 440, 'monthly_gross': 18278})
+        with freeze_time('2026-11-25'):
+            self.ctc.action_apply_to_payroll()
+        self.assertEqual(self.employee.version_id.l10n_in_pf_employee_amount, 2193)
+        nov = {l.code: l.total for l in self._slip(1, '2026-11-01', '2026-11-30').line_ids}
+        self.assertEqual(nov['PF'], -2193)
 
     def test_part_month_rounds_like_greythr(self):
         # 1 day LOP in a 31-day month, figures from a greytHR register: each component is
@@ -407,7 +432,8 @@ class TestGreythrPayroll(TransactionCase):
 
     def test_bulk_apply_and_review_from_employee_list(self):
         def new_employee(name, gross):
-            employee = self.env['hr.employee'].create({
+            # Imported the old way: the CTC row comes from the import, not the Payroll tab.
+            employee = self.env['hr.employee'].with_context(ft_salary_sync=True).create({
                 'name': name, 'company_id': self.company.id,
                 'date_version': '2026-06-01', 'contract_date_start': '2026-06-01', 'wage': 1000})
             self.env['ft.greythr.ctc'].create({

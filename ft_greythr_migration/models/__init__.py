@@ -13,3 +13,5 @@ from . import work_entry_versions
 from . import salary_register
 from . import salary_hold
 from . import ctc_breakup_export
+from . import yearly_salary_detail
+from . import salary_revision

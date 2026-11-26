@@ -135,7 +135,8 @@ class TestVariablePayRegularStructure(TransactionCase):
             'currency_id': cls.env.ref('base.INR').id,
         })
         cls.env = cls.env(context=dict(cls.env.context, allowed_company_ids=[cls.company.id],
-            tracking_disable=True, mail_create_nosubscribe=True, mail_create_nolog=True))
+            tracking_disable=True, mail_create_nosubscribe=True, mail_create_nolog=True,
+            ft_salary_sync=True))  # India Regular Pay on purpose, no Payroll tab revision
         cls.structure = cls.env.ref(
             'l10n_in_hr_payroll.hr_payroll_structure_in_employee_salary')
         cls.employee = cls.env['hr.employee'].create({

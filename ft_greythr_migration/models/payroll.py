@@ -74,7 +74,8 @@ class GreythrCTC(models.Model):
             raise UserError(self.env._('PF treatment conflicts with source eligibility.'))
         if self.payroll_pf_mode == 'capped' and self.pf_base_limit <= 0:
             raise UserError(self.env._('Provide the PF base limit for capped PF.'))
-        Employee = self.employee_id.with_context(tracking_disable=True)
+        # The CTC writes the version here; the Payroll tab sync must not write it back.
+        Employee = self.employee_id.with_context(tracking_disable=True, ft_salary_sync=True)
         version = Employee.version_ids.filtered(lambda v: v.date_version == self.effective_date)
         if len(version) > 1:
             raise UserError(self.env._('Resolve duplicate employment versions first.'))
@@ -93,6 +94,7 @@ class GreythrCTC(models.Model):
             # Target only. It is never paid monthly: HR types the payout on the
             # payslip (Variable Pay tab), up to this total per financial year.
             'ft_annual_variable_pay': self.annual_variable_pay,
+            'ft_gratuity_eligible': bool(self.full_gratuity),
             'l10n_in_standard_allowance': 0,
             'l10n_in_performance_bonus': 0,
             'l10n_in_internet_subscription': 0,
@@ -105,11 +107,33 @@ class GreythrCTC(models.Model):
             'l10n_in_pf_employer_type': 'calculate' if self.payroll_pf_mode == 'actual' else 'fixed',
         })
         # The native compute shows 12% of Basic; show the amount the payslip deducts.
-        pf_percent = self.env['hr.rule.parameter']._get_parameter_from_code(
-            'l10n_in_pf_percent', self.effective_date)
-        pf = self.currency_id.round(self._greythr_pf_base() * pf_percent)
-        version.write({'l10n_in_pf_employee_amount': pf, 'l10n_in_pf_employer_amount': pf})
+        self._greythr_write_contract_pf(version)
         return True
+
+    def _greythr_monthly_pf(self, on_date):
+        """PF a full-month payslip deducts on this CTC, as HrPayslip._greythr_pf works it out.
+
+        From the ft_pf_gross_ceiling date (September 2026) capped PF is 12% of the
+        fixed gross, on at most 25,000 of it; before that, 12% of basic up to the
+        CTC's PF base limit.
+        """
+        self.ensure_one()
+        params = self.env['hr.rule.parameter']
+        pf_percent = params._get_parameter_from_code('l10n_in_pf_percent', on_date)
+        ceiling = params._get_parameter_from_code('ft_pf_gross_ceiling', on_date, raise_if_not_found=False)
+        if ceiling and self.eligible_for_pf and self.payroll_pf_mode == 'capped':
+            gross = float_round(self._payroll_gross(), precision_digits=0, rounding_method='HALF-UP')
+            base = min(gross, ceiling)
+        else:
+            base = self._greythr_pf_base()
+        return float_round(base * pf_percent, precision_digits=0, rounding_method='HALF-UP')
+
+    def _greythr_write_contract_pf(self, version):
+        # A version in force today shows today's rule, so a CTC effective before
+        # the 25,000 ceiling does not keep showing the old 1,800.
+        self.ensure_one()
+        pf = self._greythr_monthly_pf(max(self.effective_date, fields.Date.context_today(self)))
+        version.write({'l10n_in_pf_employee_amount': pf, 'l10n_in_pf_employer_amount': pf})
 
     def _greythr_pf_base(self, factor=1):
         # Like greytHR, the cap applies to the earned PF wage: a part month
